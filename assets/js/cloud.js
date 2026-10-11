@@ -1,4 +1,4 @@
-/* 贝琪酱语无痛逆袭站 · 云托管接入（注册登录 + 进度云同步）
+/* 贝琪酱雅思英语无痛逆袭站 · 云托管接入（注册登录 + 进度云同步）
  * 纯 HTML 无构建步骤 -> 用 CDN 形式的 SDK，全局 WorkBuddyCloud。
  * publicConfig 三个值来自 workbuddy_cloud_service 激活结果，不要改成别处取来的值。
  */

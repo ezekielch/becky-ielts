@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-贝琪酱语无痛逆袭站 · GitHub 部署
+贝琪酱雅思英语无痛逆袭站 · GitHub 部署
 令牌从本地文件读取（F:\\WorkBuddy\\projects\\DP08\\密钥层\\github.txt），
 绝不写入仓库、绝不打印到终端、绝不进对话。
 
@@ -98,7 +98,7 @@ def main():
     else:
         st, r = api(tok, "POST", "/user/repos",
                     {"name": REPO, "private": False, "auto_init": False,
-                     "description": "贝琪酱语无痛逆袭站 · 雅思听说读写四科词汇打卡"})
+                     "description": "贝琪酱雅思英语无痛逆袭站 · 雅思听说读写四科词汇打卡"})
         if st not in (200, 201):
             raise SystemExit("建仓失败 HTTP %s：%s" % (st, r.get("message")))
         print("[2/5] 仓库已创建")
@@ -109,7 +109,7 @@ def main():
     if not os.path.exists(os.path.join(ROOT, ".git")):
         git(tok, "init", "-b", BRANCH)
     git(tok, "add", "-A")
-    code, out = git(tok, "commit", "-m", "贝琪酱语无痛逆袭站 · 首版（60天万词 · 四科航道）")
+    code, out = git(tok, "commit", "-m", "贝琪酱雅思英语无痛逆袭站 · 首版（60天万词 · 四科航道）")
     if code != 0 and "nothing to commit" not in out:
         print("       commit 提示：%s" % out[:300])
 

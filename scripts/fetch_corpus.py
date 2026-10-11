@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-贝琪酱语无痛逆袭站 · 语料抓取
+贝琪酱雅思英语无痛逆袭站 · 语料抓取
 仅抓取公有领域文本：Project Gutenberg（1929 年前出版 / 美国公版）。
 版权约束：非 PD 的现代作品（如 Orwell 1984、Hemingway 老人与海）请自行把合法文本
 放到 corpus/novels/ 目录，本脚本不会去下载它们。

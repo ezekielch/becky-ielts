@@ -1,4 +1,4 @@
-// 贝琪酱语无痛逆袭站 · 前端主程序（无框架、无外部依赖、纯静态）
+// 贝琪酱雅思英语无痛逆袭站 · 前端主程序（无框架、无外部依赖、纯静态）
 // 所有数据来自本地 assets/data，音频走有道 dictvoice（英音 type=1 / 美音 type=2），
 // 断网时自动降级到浏览器 speechSynthesis。
 
@@ -199,7 +199,7 @@ async function viewHome() {
       <p style="margin-top:8px"><span class="tag">${wrongN} 词待清</span></p>
     </a>`;
   return `<div class="hero">
-      <h1>贝琪酱语无痛逆袭站</h1>
+      <h1>贝琪酱雅思英语无痛逆袭站</h1>
       <p>雅思听说读写四条词汇航道。<b>第一天只有 10 个词</b>，按遗忘曲线自动加量，
       每天半小时，60 天走完 ${totalNew} 个雅思核心词条。</p>
       <p style="margin-top:10px">每个词都配：<b>英音 / 美音</b>、<b>口语化例句</b>、<b>名著原文例句</b>、

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-贝琪酱语无痛逆袭站 · 内容生成器（全确定性，零 AI 参与）
+贝琪酱雅思英语无痛逆袭站 · 内容生成器（全确定性，零 AI 参与）
 
 每个主词条产出三类真实语料例句（引用式，不搬运全书）：
   O 口语例句 —— 取自名著中的对话行（引号内容），按口语特征打分
@@ -868,7 +868,7 @@ def build():
                       "sprint": True})
         print("       冲刺/拓展库 sprint.json：%d 条" % len(sprint_words))
 
-    json.dump({"name": "贝琪酱语无痛逆袭站", "totalDays": TOTAL_DAYS,
+    json.dump({"name": "贝琪酱雅思英语无痛逆袭站", "totalDays": TOTAL_DAYS,
                "perDay": -(-sum(m["n"] for m in metas) // TOTAL_DAYS), "totalWords": sum(m["n"] for m in metas),
                "reviewIntervals": [1, 2, 4, 7, 15, 30], "days": metas,
                "stat": dict(stat)},
