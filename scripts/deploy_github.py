@@ -53,9 +53,12 @@ def api(tok, method, path, body=None):
 
 
 def git(tok, *args, capture=True):
-    env = dict(os.environ)
+    # GitHub 的 git HTTPS 端点只接受 Basic 认证（不接受 Bearer）。
+    # 用 x-access-token:<token> 做 Basic，不把令牌写进 remote URL / .git/config。
+    import base64
+    basic = base64.b64encode(("%s:" % tok).encode()).decode().strip()
     cmd = ["git",
-           "-c", "http.extraHeader=Authorization: Bearer " + tok,
+           "-c", "http.extraHeader=Authorization: Basic " + basic,
            "-c", "user.name=ezekielch",
            "-c", "user.email=ezekielch@users.noreply.github.com",
            *args]
