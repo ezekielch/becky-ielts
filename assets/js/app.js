@@ -49,6 +49,8 @@ function loadStore(lane) {
 }
 function saveStore(lane, s) {
   try { localStorage.setItem(KEY(lane), JSON.stringify(s)); } catch (e) {}
+  // 登录状态下把这份进度推到云端（内部做了 1.2s 防抖）
+  try { if (window.BQCloud) window.BQCloud.push(lane, s); } catch (e) {}
 }
 function blankStore() {
   return { rec: {}, log: {}, streak: 0, lastDay: '', mode: 'curve' };
@@ -471,6 +473,8 @@ async function route() {
     if (page === 'home') { setNav('home'); view.innerHTML = await viewHome(); afterHome(); }
     else if (page === 'lane' && LANES[a]) { setNav(a); view.innerHTML = await viewLane(a); afterLane(a); }
     else if (page === 'study' && LANES[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'login') { setNav('login'); view.innerHTML = '';
+      if (window.BQCloud) window.BQCloud.showLogin(); else location.hash = '#/home'; }
     else { location.hash = '#/home'; }
   } catch (e) {
     view.innerHTML = `<div class="card pad"><h2>加载失败</h2><div class="muted">${esc(e.message)}</div>
@@ -517,4 +521,9 @@ function keyHandler(e) {
 window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', () => { if (session && session.timer) clearInterval(session.timer); });
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
-route();
+// 先跑云端引导（含微信登录回调处理与进度合并），再进入路由
+if (window.BQCloud && window.BQCloud.boot) {
+  window.BQCloud.boot().catch(function () {}).then(route);
+} else {
+  route();
+}

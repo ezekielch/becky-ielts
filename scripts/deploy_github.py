@@ -19,7 +19,7 @@ import urllib.error
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOKEN_FILE = r"F:\WorkBuddy\projects\DP08\密钥层\github.txt"
 OWNER = "ezekielch"
-REPO = "beiqi-ielts"
+REPO = "becky-ielts"
 BRANCH = "main"
 
 ssl._create_default_https_context = ssl._create_unverified_context
