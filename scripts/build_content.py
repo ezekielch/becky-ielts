@@ -381,19 +381,24 @@ def guess_pos(w):
 # ================================================== 6. 主流程 ==================================================
 
 
-def daily_curve(total_days=60, start=10, peak=167, peak_day=24, floor=9):
-    """每日新词量曲线：起步 10 词，递增到第 24 天达峰值 167，随后递减。
-    确定性公式，保证初学者第一天不会被 167 个词劝退。"""
-    out = {}
-    for i in range(1, total_days + 1):
-        if i <= peak_day:
-            t = (i - 1) / max(1.0, peak_day - 1)
-            v = start + (peak - start) * (t ** 0.85)
-        else:
-            t = (i - peak_day) / float(total_days - peak_day)
-            v = peak - (peak - floor) * (t ** 1.15)
-        out[i] = max(1, int(round(v)))
-    return out
+def daily_curve(total_days=60, warm=(10, 25, 50)):
+    """每日新词量曲线：前 3 天适应期 10/25/50 词，第 4 天起匀速，
+    60 天正好走完全部词条（不因起步轻松而削减总量）。"""
+    return warm
+
+
+def curve_for(total_words, total_days=60, warm=(10, 25, 50)):
+    """按实际词条总量反推曲线：适应期固定，剩余天数均分，余数并入最后一天。"""
+    counts = {}
+    for i, n in enumerate(warm, start=1):
+        counts[i] = n
+    rest_days = total_days - len(warm)
+    left = max(0, total_words - sum(warm))
+    base = left // max(1, rest_days)
+    for d in range(len(warm) + 1, total_days + 1):
+        counts[d] = base
+    counts[total_days] += left - base * rest_days   # 余数放最后一天
+    return counts
 
 
 AWL_FILE = os.path.join(ROOT, "scripts", "awl.json")
@@ -526,10 +531,9 @@ def build():
     tier2.sort(key=lambda w: w["word"])
     words = tier1 + tier2
 
-    counts = daily_curve(TOTAL_DAYS)
-    print("       每日新词曲线：D1=%d  D15=%d  D%d(峰值)=%d  D45=%d  D60=%d" % (
-        counts[1], counts[15], max(counts, key=counts.get), counts[max(counts, key=counts.get)],
-        counts[45], counts[60]))
+    counts = curve_for(len(words), TOTAL_DAYS)
+    print("       每日新词：D1=%d D2=%d D3=%d，第 4 天起 %d/天，D60=%d，合计 %d" % (
+        counts[1], counts[2], counts[3], counts[4], counts[60], sum(counts.values())))
     day_of, acc = {}, 0
     for d in range(1, TOTAL_DAYS + 1):
         for w in words[acc:acc + counts[d]]:
