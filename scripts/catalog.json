@@ -1,0 +1,196 @@
+{
+ "map": {
+  "austen_pride": {
+   "cn": "傲慢与偏见",
+   "author": "Jane Austen"
+  },
+  "bronte_jane_eyre": {
+   "cn": "简·爱",
+   "author": "Charlotte Bronte"
+  },
+  "bronte_wuthering": {
+   "cn": "呼啸山庄",
+   "author": "Emily Bronte"
+  },
+  "austen_emma": {
+   "cn": "爱玛",
+   "author": "Jane Austen"
+  },
+  "austen_persuasion": {
+   "cn": "劝导",
+   "author": "Jane Austen"
+  },
+  "austen_sense": {
+   "cn": "理智与情感",
+   "author": "Jane Austen"
+  },
+  "austen_mansfield": {
+   "cn": "曼斯菲尔德庄园",
+   "author": "Jane Austen"
+  },
+  "melville_moby": {
+   "cn": "白鲸",
+   "author": "Herman Melville"
+  },
+  "shelley_frankenstein": {
+   "cn": "弗兰肯斯坦",
+   "author": "Mary Shelley"
+  },
+  "dickens_two_cities": {
+   "cn": "双城记",
+   "author": "Charles Dickens"
+  },
+  "dickens_expectations": {
+   "cn": "远大前程",
+   "author": "Charles Dickens"
+  },
+  "dickens_oliver": {
+   "cn": "雾都孤儿",
+   "author": "Charles Dickens"
+  },
+  "collins_moonstone": {
+   "cn": "月亮宝石",
+   "author": "Wilkie Collins"
+  },
+  "stoker_dracula": {
+   "cn": "德古拉",
+   "author": "Bram Stoker"
+  },
+  "wilde_dorian": {
+   "cn": "道林·格雷的画像",
+   "author": "Oscar Wilde"
+  },
+  "carroll_alice": {
+   "cn": "爱丽丝梦游仙境",
+   "author": "Lewis Carroll"
+  },
+  "doyle_sherlock": {
+   "cn": "福尔摩斯冒险史",
+   "author": "Arthur Conan Doyle"
+  },
+  "doyle_baskervilles": {
+   "cn": "巴斯克维尔的猎犬",
+   "author": "Arthur Conan Doyle"
+  },
+  "doyle_scarlet": {
+   "cn": "血字的研究",
+   "author": "Arthur Conan Doyle"
+  },
+  "dumas_monte_cristo": {
+   "cn": "基督山伯爵",
+   "author": "Alexandre Dumas"
+  },
+  "conrad_darkness": {
+   "cn": "黑暗的心",
+   "author": "Joseph Conrad"
+  },
+  "tolstoy_war_peace": {
+   "cn": "战争与和平",
+   "author": "Leo Tolstoy"
+  },
+  "homer_odyssey": {
+   "cn": "奥德赛",
+   "author": "Homer (S. Butler trans.)"
+  },
+  "wells_time_machine": {
+   "cn": "时间机器",
+   "author": "H. G. Wells"
+  },
+  "wells_war_worlds": {
+   "cn": "世界大战",
+   "author": "H. G. Wells"
+  },
+  "baum_oz": {
+   "cn": "绿野仙踪",
+   "author": "L. Frank Baum"
+  },
+  "montgomery_anne": {
+   "cn": "绿山墙的安妮",
+   "author": "L. M. Montgomery"
+  },
+  "kipling_kim": {
+   "cn": "基姆",
+   "author": "Rudyard Kipling"
+  },
+  "xueqin_red_chamber": {
+   "cn": "红楼梦",
+   "author": "Cao Xueqin (trans.)"
+  },
+  "wilde_earnest": {
+   "cn": "不可儿戏",
+   "author": "Oscar Wilde"
+  },
+  "machiavelli_prince": {
+   "cn": "君主论",
+   "author": "Niccolo Machiavelli"
+  },
+  "plato_republic": {
+   "cn": "理想国",
+   "author": "Plato (B. Jowett trans.)"
+  },
+  "smith_wealth": {
+   "cn": "国富论",
+   "author": "Adam Smith"
+  },
+  "darwin_origin": {
+   "cn": "物种起源",
+   "author": "Charles Darwin"
+  },
+  "mill_liberty": {
+   "cn": "论自由",
+   "author": "John Stuart Mill"
+  },
+  "joyce_dubliners": {
+   "cn": "都柏林人",
+   "author": "James Joyce"
+  },
+  "joyce_portrait": {
+   "cn": "一个青年艺术家的画像",
+   "author": "James Joyce"
+  },
+  "doyle_lost_world": {
+   "cn": "失落的世界",
+   "author": "Arthur Conan Doyle"
+  }
+ },
+ "by_cn": {
+  "傲慢与偏见": "Jane Austen",
+  "简·爱": "Charlotte Bronte",
+  "呼啸山庄": "Emily Bronte",
+  "爱玛": "Jane Austen",
+  "劝导": "Jane Austen",
+  "理智与情感": "Jane Austen",
+  "曼斯菲尔德庄园": "Jane Austen",
+  "白鲸": "Herman Melville",
+  "弗兰肯斯坦": "Mary Shelley",
+  "双城记": "Charles Dickens",
+  "远大前程": "Charles Dickens",
+  "雾都孤儿": "Charles Dickens",
+  "月亮宝石": "Wilkie Collins",
+  "德古拉": "Bram Stoker",
+  "道林·格雷的画像": "Oscar Wilde",
+  "爱丽丝梦游仙境": "Lewis Carroll",
+  "福尔摩斯冒险史": "Arthur Conan Doyle",
+  "巴斯克维尔的猎犬": "Arthur Conan Doyle",
+  "血字的研究": "Arthur Conan Doyle",
+  "基督山伯爵": "Alexandre Dumas",
+  "黑暗的心": "Joseph Conrad",
+  "战争与和平": "Leo Tolstoy",
+  "奥德赛": "Homer (S. Butler trans.)",
+  "时间机器": "H. G. Wells",
+  "世界大战": "H. G. Wells",
+  "绿野仙踪": "L. Frank Baum",
+  "绿山墙的安妮": "L. M. Montgomery",
+  "基姆": "Rudyard Kipling",
+  "红楼梦": "Cao Xueqin (trans.)",
+  "不可儿戏": "Oscar Wilde",
+  "君主论": "Niccolo Machiavelli",
+  "理想国": "Plato (B. Jowett trans.)",
+  "国富论": "Adam Smith",
+  "物种起源": "Charles Darwin",
+  "论自由": "John Stuart Mill",
+  "都柏林人": "James Joyce",
+  "一个青年艺术家的画像": "James Joyce",
+  "失落的世界": "Arthur Conan Doyle"
+ }
+}

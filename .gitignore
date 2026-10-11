@@ -1,0 +1,7 @@
+
+# 语料与密钥不入仓（部署脚本自动追加）
+*.pat
+*.token
+corpus/
+scripts/__pycache__/
+密钥层/
