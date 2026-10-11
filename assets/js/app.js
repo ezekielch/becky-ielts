@@ -218,6 +218,14 @@ async function viewHome() {
     <div class="card pad" style="margin-top:14px">
       <h2>词库构成</h2>
       <div class="muted">${Object.entries(META.stat).map(([k, v]) => `${({ bible: '圣经原文例句', oral: '口语化例句', lit: '名著原文例句', deriv: '派生词', coll: '高频搭配' })[k] || k} ${v}`).join(' · ')}</div>
+    </div>
+    <div class="qr-promo">
+      <img class="qr-img" src="./assets/img/qrcode.jpg" alt="公众号二维码" loading="lazy">
+      <div class="qr-text">
+        <b>关注公众号 · 贝琪酱英语无痛逆袭站</b>
+        <span class="en">Follow us on WeChat — Becky's Painless English Station</span>
+        <span class="muted">微信扫码，打卡提醒、学习方法与雅思资讯持续更新</span>
+      </div>
     </div>`;
 }
 
