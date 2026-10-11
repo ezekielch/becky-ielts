@@ -550,6 +550,72 @@ def ielts_score_pool(narratives, words):
     return scores
 
 
+SUFFIX_CN = [
+    ("ation", "…（行为/过程）"), ("ition", "…（行为/过程）"), ("tion", "…（行为/结果）"),
+    ("sion", "…（行为/结果）"), ("ment", "…（行为/状态）"), ("ness", "…（性质/状态）"),
+    ("ity", "…性；…度"), ("ance", "…（行为/状态）"), ("ence", "…（行为/状态）"),
+    ("ship", "…身份；…关系"), ("dom", "…领域；…状态"), ("ism", "…主义；…学说"),
+    ("ist", "…者；…家"), ("er", "…者；…物"), ("or", "…者；…物"),
+    ("able", "可…的；能…的"), ("ible", "可…的；能…的"), ("ive", "有…倾向的；…的"),
+    ("ical", "…的；…学上的"), ("al", "…的；与…有关的"), ("ic", "…的"),
+    ("ous", "具有…的；多…的"), ("ful", "充满…的"), ("less", "无…的；缺乏…的"),
+    ("ise", "使…化"), ("ize", "使…化"), ("ify", "使…化；变成…"),
+    ("ate", "使…；成为…"), ("ly", "…地"), ("age", "…（行为/结果）"),
+]
+SUFFIX_POS = {"ly": "adv.", "able": "adj.", "ible": "adj.", "ive": "adj.", "al": "adj.",
+              "ical": "adj.", "ic": "adj.", "ous": "adj.", "ful": "adj.", "less": "adj.",
+              "ness": "n.", "ity": "n.", "tion": "n.", "ation": "n.", "ition": "n.",
+              "sion": "n.", "ment": "n.", "ance": "n.", "ence": "n.", "ism": "n.",
+              "ist": "n.", "er": "n.", "or": "n.", "ship": "n.", "dom": "n.", "age": "n."}
+
+
+def gloss_of(base_cn, word, base):
+    """派生词中文释义 = 主词释义 + 词缀义（确定性拼接，不臆造新义）"""
+    for suf, cn in SUFFIX_CN:
+        if word.endswith(suf) and len(word) > len(base):
+            core = base_cn.split("；")[0].split("，")[0]
+            return cn.replace("…", core)
+    return base_cn
+
+
+def pos_of(word, base_pos):
+    for suf, p in SUFFIX_POS.items():
+        if word.endswith(suf):
+            return p
+    return base_pos or ""
+
+
+def expand_families(words, lex, freq, need):
+    """用词族派生补足词条数：
+    只收「词表存在 ∩ 语料实证 ∩ 主词已有释义」的真词，绝不凭空造词。"""
+    have = set(w["word"].lower() for w in words)
+    cands = {}
+    for w in words:
+        base = w["word"].lower()
+        if not w["cn"]:
+            continue
+        for f in gen_derivatives(base, lex, freq):
+            if f in have or f in cands:
+                continue
+            cands[f] = (w, f)
+    # 按语料实证频次排序：越常用的派生词越值得学
+    ranked = sorted(cands.keys(), key=lambda f: -freq.get(f, 0))
+    out = []
+    for f in ranked:
+        if len(out) >= need:
+            break
+        parent = cands[f][0]
+        cn = gloss_of(parent["cn"], f, parent["word"].lower())
+        if not cn or cn == parent["cn"]:
+            continue
+        out.append({
+            "word": f, "uk": "", "us": "", "pos": pos_of(f, parent["pos"]),
+            "cn": cn, "tags": [], "level": parent["level"],
+            "_parent": parent["word"],
+        })
+    return out
+
+
 def build():
     print("[1/7] 载入词表 …")
     words = load_words()
@@ -610,6 +676,15 @@ def build():
     print("[4/7] 载入校验词表 …")
     lex = set(l.strip().lower() for l in
               open(LEXICON, "r", encoding="utf-8", errors="ignore"))
+
+    # 补足到 10,000 条：用真实词族派生（词表 + 语料双重校验，不臆造新词）
+    if len(words) < 10000:
+        add = expand_families(words, lex, lower_freq, 10000 - len(words))
+        for e in add:
+            parent = e.pop("_parent", None)
+            idx = next((i for i, w in enumerate(words) if w["word"] == parent), None)
+            words.insert(idx + 1 if idx is not None else len(words), e)
+        print("       词族派生补足 %d 条 -> 合计 %d" % (len(add), len(words)))
 
     print("[5/7] 建立倒排索引 …")
     var2w = {}

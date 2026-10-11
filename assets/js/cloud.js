@@ -119,7 +119,7 @@
   function merge(a, b) {
     var out = { rec: {}, log: {}, streak: Math.max(a.streak || 0, b.streak || 0),
                 lastDay: (a.lastDay || '') > (b.lastDay || '') ? a.lastDay : b.lastDay,
-                mode: a.mode || b.mode || 'curve' };
+                mode: a.mode || b.mode || 'curve', wrongPool: [] };
     ['a', 'b'].forEach(function () {});
     Object.assign(out.rec, b.rec || {}, a.rec || {});
     var k;
@@ -132,6 +132,11 @@
       var p = a.log[k], q = (b.log || {})[k];
       if (p && (!q || (p.new || 0) + (p.rev || 0) > (q.new || 0) + (q.rev || 0))) out.log[k] = p;
     }
+    // 错词本：按 key 并集，避免任一侧丢失
+    var seen = {};
+    (a.wrongPool || []).concat(b.wrongPool || []).forEach(function (it) {
+      if (it && it.key && !seen[it.key]) { seen[it.key] = 1; out.wrongPool.push(it); }
+    });
     return out;
   }
 

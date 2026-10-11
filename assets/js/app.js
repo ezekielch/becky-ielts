@@ -3,27 +3,24 @@
 // 断网时自动降级到浏览器 speechSynthesis。
 
 /* ============================== 配置 ============================== */
+// 单词打卡是独立板块（与听说读写四科并列，四科后续单独建设）
 const LANES = {
-  listening: {
-    name: '听力', icon: '🎧', cls: 'l-listening',
-    desc: '先听后看：默认先播放英音／美音，可开「听写模式」敲出拼写再揭晓。',
-    order: ['b', 'q', 'o'], audioFirst: true, dictate: true, hideWord: true,
+  words: {
+    name: '背单词', icon: '🔤', cls: 'l-reading',
+    desc: '60 天走完 10,000 个雅思核心词条：英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，遗忘曲线自动排复习。',
+    order: ['b', 'q', 'o'], audioFirst: false, dictate: false, hideWord: false,
   },
-  reading: {
-    name: '阅读', icon: '📖', cls: 'l-reading',
-    desc: '语境优先：先看真实语料例句与当日篇章拓展阅读，再回看单词本身。',
-    order: ['q', 'b', 'o'], audioFirst: false, dictate: false, hideWord: false,
-  },
-  writing: {
-    name: '写作', icon: '✍️', cls: 'l-writing',
-    desc: '产出优先：突出高频搭配与派生词，写作常用升级替换。',
-    order: ['o', 'q', 'b'], audioFirst: false, dictate: false, hideWord: false,
-  },
-  speaking: {
-    name: '口语', icon: '💬', cls: 'l-speaking',
-    desc: '口语优先：例句默认取名著对话原句，可整句跟读。',
-    order: ['o', 'b', 'q'], audioFirst: false, dictate: false, hideWord: false,
-  },
+};
+// 雅思四科（后续建设，当前为占位说明）
+const SUBJECTS = {
+  listening: { name: '听力', icon: '🎧', cls: 'l-listening',
+    plan: '真题精听 · 场景词汇听辨 · 听写填空 · 英音美音辨析' },
+  reading: { name: '阅读', icon: '📖', cls: 'l-reading',
+    plan: '题型技巧 · 同义替换库 · 长难句拆解 · 计时模考' },
+  writing: { name: '写作', icon: '✍️', cls: 'l-writing',
+    plan: '大作文题库 · 句型模板 · 同义升级 · 批改反馈' },
+  speaking: { name: '口语', icon: '💬', cls: 'l-speaking',
+    plan: 'Part1/2/3 题库 · 话题词汇 · 跟读评分 · 模考录音' },
 };
 const AUDIO = (w, type) => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(w)}&type=${type}`;
 const KEY = (lane) => `bq8.${lane}`;
@@ -53,12 +50,12 @@ function saveStore(lane, s) {
   try { if (window.BQCloud) window.BQCloud.push(lane, s); } catch (e) {}
 }
 function blankStore() {
-  return { rec: {}, log: {}, streak: 0, lastDay: '', mode: 'curve' };
+  return { rec: {}, log: {}, streak: 0, lastDay: '', mode: 'curve', wrongPool: [] };
 }
 const storeFor = (lane) => {
   let s = loadStore(lane);
   if (!s || typeof s !== 'object' || !s.rec) s = Object.assign(blankStore(), s);
-  s.rec = s.rec || {}; s.log = s.log || {};
+  s.rec = s.rec || {}; s.log = s.log || {}; s.wrongPool = s.wrongPool || [];
   return s;
 };
 
@@ -156,31 +153,51 @@ async function buildQueue(lane, day) {
   const now = Date.now();
   const due = [], fresh = [];
   for (const w of pack.words) {
-    const rec = s.rec[`${day}:${w.w}`];
-    if (!rec) fresh.push({ w, day, kind: 'new' });
-    else if (rec.due && rec.due <= now) due.push({ w, day, kind: 'rev' });
+    const key = `${day}:${w.w}`;
+    const rec = s.rec[key];
+    if (!rec) fresh.push({ w, day, kind: 'new', key });
+    else if (rec.due && rec.due <= now) due.push({ w, day, kind: 'rev', key });
   }
-  due.sort((a, b) => (s.rec[`${a.day}:${a.w.w}`].due || 0) - (s.rec[`${b.day}:${b.w.w}`].due || 0));
-  // 复习在前，新词在后；本轮复习上限 150
-  return due.slice(0, 150).concat(fresh);
+  due.sort((a, b) => (s.rec[a.key].due || 0) - (s.rec[b.key].due || 0));
+  let q = due.slice(0, 150).concat(fresh);
+  // 错词本回流：把到期的历史错词插到后续任何一天（每轮最多 25 个，且与本日词去重）
+  const keys = new Set(q.map(it => it.key));
+  const inject = (s.wrongPool || []).filter(it => !keys.has(it.key) && s.rec[it.key] && s.rec[it.key].due <= now);
+  q = q.concat(inject.slice(0, 25));
+  return q;
 }
 
 /* ============================== 视图：首页 ============================== */
 async function viewHome() {
   if (!META) META = await loadJSON('./assets/data/meta.json');
   const totalNew = META.days.filter(d => !d.sprint).reduce((a, d) => a + d.n, 0);
-  const lanesHtml = Object.entries(LANES).map(([k, L]) => {
-    const s = storeFor(k);
-    const done = Object.values(s.rec).filter(r => r.n > 0).length;
-    const pct = Math.min(100, (done / Math.max(1, totalNew)) * 100);
-    return `<a class="lane ${L.cls}" href="#/lane/${k}">
-      <div class="ic">${L.icon}</div>
-      <b>${L.name} · 单词打卡</b>
-      <p>${L.desc}</p>
-      <p style="margin-top:8px"><span class="tag">已学 ${done} 词</span> <span class="tag">连续 ${s.streak || 0} 天</span></p>
-      <div class="bar"><i style="width:${pct}%"></i></div>
+  const s0 = storeFor('words');
+  const done0 = Object.values(s0.rec).filter(r => r.n > 0).length;
+  const wrongN = (s0.wrongPool || []).length;
+  const pct0 = Math.min(100, (done0 / Math.max(1, totalNew)) * 100);
+  const lanesHtml =
+    `<a class="lane ${LANES.words.cls}" href="#/lane/words">
+      <div class="ic">${LANES.words.icon}</div>
+      <b>背单词 · 60 天万词</b>
+      <p>${LANES.words.desc}</p>
+      <p style="margin-top:8px"><span class="tag">已学 ${done0} 词</span>
+        <span class="tag">连续 ${s0.streak || 0} 天</span>
+        ${wrongN ? `<span class="tag">错词 ${wrongN}</span>` : ''}</p>
+      <div class="bar"><i style="width:${pct0}%"></i></div>
+    </a>` +
+    Object.entries(SUBJECTS).map(([k, S]) =>
+      `<a class="lane ${S.cls}" href="#/sub/${k}">
+        <div class="ic">${S.icon}</div>
+        <b>${S.name}</b>
+        <p>${S.plan}</p>
+        <p style="margin-top:8px"><span class="tag">建设中</span></p>
+      </a>`).join('') +
+    `<a class="lane l-writing" href="#/wrong">
+      <div class="ic">🗂️</div>
+      <b>错词本</b>
+      <p>打卡中答错的词自动进这里，按遗忘曲线回插到后续天数。</p>
+      <p style="margin-top:8px"><span class="tag">${wrongN} 词待清</span></p>
     </a>`;
-  }).join('');
   return `<div class="hero">
       <h1>贝琪酱语无痛逆袭站</h1>
       <p>雅思听说读写四条词汇航道。<b>第一天只有 10 个词</b>，按遗忘曲线自动加量，
@@ -226,6 +243,7 @@ async function viewLane(lane) {
       <div class="row" style="margin-top:6px">
         <span class="tag">连续打卡 ${s.streak || 0} 天</span>
         <span class="tag">已掌握 ${Object.values(s.rec).filter(r => r.n > 0).length} 词</span>
+        ${ (s.wrongPool || []).length ? `<span class="tag">错词 ${(s.wrongPool || []).length}</span>` : '' }
         <span class="tag">模式：${s.mode === 'flat' ? '匀速（60 天全覆盖）' : '渐进曲线'}</span>
         <button class="chip2" id="toggleMode" style="margin-left:auto">切换模式</button>
       </div>
@@ -268,18 +286,26 @@ async function viewStudy(lane, dayStr) {
   const q = await buildQueue(lane, day);
   session = {
     lane, day, L, queue: q, idx: 0, revealed: false, start: Date.now(),
-    total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0, acquired: 0,
+    total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0,
+    right: 0, wrong: 0, fuzzy: 0, mode: 'study',
   };
   return `<div class="study">
       <div class="spread">
-        <div><span class="tag">${L.icon} ${L.name}</span> <span class="tag">Day ${day}</span></div>
+        <div><span class="tag">${L.icon} ${L.name}</span> <span class="tag">Day ${day}</span>
+          <span class="tally" id="tally">✓ <b id="tRight">0</b> ✗ <b id="tWrong">0</b> ～ <b id="tFuzzy">0</b></span></div>
         <div class="row">
           <span class="timer" id="timer">30:00</span>
+          <button class="chip2" id="kbHelp">⌨ 说明</button>
           <button class="chip2" id="exitBtn">退出</button>
         </div>
       </div>
       <div class="progress-wrap"><i id="pbar" style="width:0%"></i></div>
       <div class="row spread"><span class="muted" id="ptext">准备开始</span><span class="muted" id="counter">0 / ${session.total}</span></div>
+      <div class="kblegend" id="kblegend">
+        <span><kbd>空格</kbd> 显示释义 / 记「记得」</span>
+        <span><kbd>1</kbd> 不认识</span><span><kbd>2</kbd> 模糊</span><span><kbd>3</kbd> 记得</span>
+        <span><kbd>↑</kbd> 英音 <kbd>↓</kbd> 美音</span><span><kbd>←</kbd><kbd>→</kbd> 上下词</span>
+      </div>
       <div id="card" class="card pad" style="margin-top:14px"></div>
     </div>`;
 }
@@ -397,12 +423,31 @@ function bindCard(w, item) {
   });
 }
 
+function addToPool(st, item, w) {
+  st.wrongPool = st.wrongPool || [];
+  if (!st.wrongPool.some(p => p.key === item.key)) st.wrongPool.push({ key: item.key, day: item.day, w: w });
+}
+function removeFromPool(st, key) {
+  if (!st.wrongPool) return;
+  st.wrongPool = st.wrongPool.filter(p => p.key !== key);
+}
+function updateTally() {
+  const r = document.getElementById('tRight'), x = document.getElementById('tWrong'), z = document.getElementById('tFuzzy');
+  if (r) r.textContent = session.right; if (x) x.textContent = session.wrong; if (z) z.textContent = session.fuzzy;
+}
 function onGrade(g, w, item) {
   const s = session;
   if (!s.revealed) { s.revealed = true; if (s.L.audioFirst) speak(w.w, 1); renderCard(); return; }
   const st = storeFor(s.lane);
-  const key = `${s.day}:${w.w}`;
+  const key = item.key || `${s.day}:${w.w}`;
   st.rec[key] = grade(st.rec[key] || { due: 0 }, g);
+
+  // 错词本：不认识 / 模糊 进池，记得 出池
+  if (g === 0 || g === 1) addToPool(st, item, w);
+  else if (g === 2) removeFromPool(st, key);
+
+  // 本轮对错计数
+  if (g === 2) s.right++; else if (g === 0) s.wrong++; else s.fuzzy++;
 
   // 当天统计
   const t = todayStr();
@@ -419,6 +464,7 @@ function onGrade(g, w, item) {
 
   s.idx++; s.revealed = false;
   renderCard();
+  updateTally();
 }
 
 function renderDone() {
@@ -429,10 +475,29 @@ function renderDone() {
   const c = document.getElementById('counter'); if (c) c.textContent = `${s.total} / ${s.total}`;
   const p = document.getElementById('ptext'); if (p) p.textContent = '本轮完成';
   const st = storeFor(s.lane);
+  const poolN = (st.wrongPool || []).length;
+  if (s.mode === 'wrong') {
+    el.innerHTML = `<div class="done-box">
+      <div class="big">🗂️</div>
+      <h2>错词复习完成</h2>
+      <div class="muted">本轮记对 ${s.right} · 记错 ${s.wrong} · 模糊 ${s.fuzzy}</div>
+      <div class="muted" style="margin-top:8px">错词本还剩 ${poolN} 个词待清，会持续回插到每日打卡</div>
+      <div class="row" style="justify-content:center;margin-top:16px">
+        <a class="btn" href="#/wrong">回到错词本</a>
+        <a class="btn ghost" href="#/home">回首页</a>
+      </div></div>`;
+    return;
+  }
   el.innerHTML = `<div class="done-box">
       <div class="big">🎉</div>
       <h2>Day ${s.day} 打卡成功</h2>
       <div class="muted">用时约 ${mins} 分钟 · 新词 ${s.newDone} · 复习 ${s.revDone}</div>
+      <div class="sumrow">
+        <span class="sum ok">记对 ${s.right}</span>
+        <span class="sum bad">记错 ${s.wrong}</span>
+        <span class="sum mid">模糊 ${s.fuzzy}</span>
+      </div>
+      ${s.wrong ? `<div class="muted" style="margin-top:8px">有 ${s.wrong} 个词进错词本，后续天数会自动回炉复习 → <a href="#/wrong">去巩固</a></div>` : `<div class="muted" style="margin-top:8px">全部记住啦，继续保持 💪</div>`}
       <div class="row" style="justify-content:center;margin-top:16px">
         <a class="btn" href="#/lane/${s.lane}">回到 ${s.L.name} 频道</a>
         <a class="btn ghost" href="#/study/${s.lane}/${Math.min(60, s.day + 1)}">预习 Day ${s.day + 1}</a>
@@ -456,6 +521,74 @@ function startTimer() {
   }, 1000);
 }
 
+/* ============================== 错词本 ============================== */
+async function buildWrongQueue(lane) {
+  const s = storeFor(lane);
+  const pool = s.wrongPool || [];
+  const now = Date.now();
+  const due = pool.filter(it => { const r = s.rec[it.key]; return r && r.due && r.due <= now; });
+  const src = due.length ? due : pool.slice();
+  return src.map(it => ({ key: it.key, day: it.day, w: it.w, kind: 'rev' }));
+}
+async function viewWrong() {
+  const s = storeFor('words');
+  const pool = s.wrongPool || [];
+  if (!pool.length) {
+    return `<div class="card pad"><h2>🗂️ 错词本</h2>
+      <p class="muted">还没有答错的词。打卡时选「不认识 / 模糊」的词会自动进这里，并在后续天数回炉复习。</p>
+      <p style="margin-top:14px"><a class="btn" href="#/lane/words">去背单词</a></p></div>`;
+  }
+  const now = Date.now();
+  const list = pool.map(it => `<div class="wcard ${(s.rec[it.key] && s.rec[it.key].due <= now) ? 'due' : ''}">
+      <b>${esc(it.w.w)}</b><span>${esc(it.w.p)} ${esc(it.w.m)}</span>
+      <button class="speak sm" data-audio="${esc(it.w.w)}" data-type="1">🔊</button></div>`).join('');
+  return `<div class="card pad">
+    <div class="spread"><h2 style="margin:0">🗂️ 错词本（${pool.length}）</h2>
+      <a class="btn" href="#/wrongstudy">开始错词复习</a></div>
+    <div class="muted" style="margin-top:6px">这些词在打卡时被判「不认识 / 模糊」，会按遗忘曲线回插到每日打卡；在这里可专项突击。</div>
+    <div class="wordlist" style="margin-top:14px">${list}</div>
+  </div>`;
+}
+function afterWrong() {
+  document.querySelectorAll('#view .wcard .speak').forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); speak(b.dataset.audio, parseInt(b.dataset.type || '1', 10)); };
+  });
+}
+async function viewWrongStudy() {
+  const lane = 'words';
+  const q = await buildWrongQueue(lane);
+  session = {
+    lane, day: plannedDay(lane), L: LANES[lane], queue: q, idx: 0, revealed: false, start: Date.now(),
+    total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0,
+    right: 0, wrong: 0, fuzzy: 0, mode: 'wrong',
+  };
+  return `<div class="study">
+    <div class="spread">
+      <div><span class="tag">🗂️ 错词复习</span> <span class="tag">${q.length} 词</span>
+        <span class="tally" id="tally">✓ <b id="tRight">0</b> ✗ <b id="tWrong">0</b> ～ <b id="tFuzzy">0</b></span></div>
+      <div class="row"><span class="timer" id="timer">30:00</span>
+        <button class="chip2" id="kbHelp">⌨ 说明</button>
+        <button class="chip2" id="exitBtn">退出</button></div>
+    </div>
+    <div class="progress-wrap"><i id="pbar" style="width:0%"></i></div>
+    <div class="row spread"><span class="muted" id="ptext">错词专项</span><span class="muted" id="counter">0 / ${q.length}</span></div>
+    <div class="kblegend" id="kblegend">
+      <span><kbd>空格</kbd> 显示释义 / 记「记得」</span><span><kbd>1</kbd> 不认识</span>
+      <span><kbd>2</kbd> 模糊</span><span><kbd>3</kbd> 记得</span>
+      <span><kbd>↑</kbd> 英音 <kbd>↓</kbd> 美音</span></div>
+    <div id="card" class="card pad" style="margin-top:14px"></div>
+  </div>`;
+}
+function viewSubject(k) {
+  const S = SUBJECTS[k];
+  return `<div class="card pad">
+    <div class="spread"><h1 style="margin:0">${S.icon} ${S.name}</h1><span class="tag">建设中</span></div>
+    <p class="muted" style="margin-top:10px">${S.plan}</p>
+    <div class="muted" style="margin-top:14px">四大板块（听 / 读 / 写 / 口）将基于单词打卡的记忆引擎陆续上线，敬请期待。</div>
+    <p style="margin-top:16px"><a class="btn" href="#/lane/words">先去背单词 →</a></p>
+  </div>`;
+}
+
 /* ============================== 路由 ============================== */
 function setNav(name) {
   document.querySelectorAll('#nav a').forEach(a => {
@@ -464,6 +597,7 @@ function setNav(name) {
 }
 
 async function route() {
+  document.removeEventListener('keydown', keyHandler);
   const h = location.hash || '#/home';
   const m = h.match(/^#\/(\w+)(?:\/([\w-]+))?(?:\/(\d+))?/);
   const view = document.getElementById('view');
@@ -474,6 +608,9 @@ async function route() {
     if (page === 'home') { setNav('home'); view.innerHTML = await viewHome(); afterHome(); }
     else if (page === 'lane' && LANES[a]) { setNav(a); view.innerHTML = await viewLane(a); afterLane(a); }
     else if (page === 'study' && LANES[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'sub' && SUBJECTS[a]) { setNav(a); view.innerHTML = viewSubject(a); }
+    else if (page === 'wrong') { setNav('words'); view.innerHTML = await viewWrong(); afterWrong(); }
+    else if (page === 'wrongstudy') { setNav('words'); view.innerHTML = await viewWrongStudy(); renderCard(); startTimer(); afterStudy(); }
     else if (page === 'login') { setNav('login'); view.innerHTML = '';
       if (window.BQCloud) window.BQCloud.showLogin(); else location.hash = '#/home'; }
     else { location.hash = '#/home'; }
@@ -506,17 +643,61 @@ function afterLane(lane) {
 }
 function afterStudy() {
   const ex = document.getElementById('exitBtn');
-  if (ex) ex.onclick = () => { location.hash = `#/lane/${session.lane}`; };
+  if (ex) ex.onclick = () => { location.hash = session.mode === 'wrong' ? '#/wrong' : `#/lane/${session.lane}`; };
+  const bh = document.getElementById('kbHelp'); if (bh) bh.onclick = toggleKbHelp;
   document.addEventListener('keydown', keyHandler);
+}
+function gradeKey(g, w, item) {
+  if (!session.revealed) { session.revealed = true; renderCard(); return; }
+  onGrade(g, w, item);
+}
+function scrub(d) {
+  const ni = session.idx + d;
+  if (ni < 0 || ni >= session.queue.length) return;
+  session.idx = ni; session.revealed = true; renderCard();
+}
+function toggleKbHelp() {
+  let ov = document.getElementById('kbHelpOverlay');
+  if (ov) { ov.remove(); return; }
+  ov = document.createElement('div');
+  ov.id = 'kbHelpOverlay'; ov.className = 'kbhelp';
+  ov.innerHTML = `<div class="kbhelp-box card">
+    <div class="spread"><h2 style="margin:0">⌨ 按键操作说明</h2><button class="chip2" id="kbHelpClose">关闭</button></div>
+    <ul class="kb-list">
+      <li><kbd>空格</kbd> 未显示释义时 → 显示释义；已显示 → 记「记得」并过词</li>
+      <li><kbd>1</kbd> 不认识（立刻重排，并进错词本）</li>
+      <li><kbd>2</kbd> 有点模糊（明天再见）</li>
+      <li><kbd>3</kbd> 记得（进入记忆曲线）</li>
+      <li><kbd>↑</kbd> 播放英音　<kbd>↓</kbd> 播放美音</li>
+      <li><kbd>←</kbd> 上一个词（回看）　<kbd>→</kbd> 下一个词（跳过）</li>
+      <li><kbd>R</kbd> 再听一遍</li>
+      <li><kbd>?</kbd> 打开 / 关闭本说明</li>
+    </ul>
+    <div class="muted">鼠标点击卡片上的按钮效果相同。错词会自动回插到后续每天的打卡里复习。</div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov || e.target.id === 'kbHelpClose') ov.remove(); });
 }
 function keyHandler(e) {
   if (!session) return;
-  if (e.code === 'Space') { e.preventDefault(); document.querySelector('.grade button')?.click(); }
-  else if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) {
-    const g = { Digit1: 0, Digit2: 1, Digit3: 2 }[e.code];
-    const btns = document.querySelectorAll('.grade button');
-    if (btns.length === 3) btns[g]?.click();
+  const item = session.queue[session.idx];
+  if (!item) return;
+  const w = item.w;
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    if (!session.revealed) { session.revealed = true; renderCard(); }
+    else onGrade(2, w, item);
+    return;
   }
+  if (e.key === '1' || e.code === 'Digit1') { e.preventDefault(); gradeKey(0, w, item); return; }
+  if (e.key === '2' || e.code === 'Digit2') { e.preventDefault(); gradeKey(1, w, item); return; }
+  if (e.key === '3' || e.code === 'Digit3') { e.preventDefault(); gradeKey(2, w, item); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); speak(w.w, 1); return; }
+  if (e.key === 'ArrowDown') { e.preventDefault(); speak(w.w, 2); return; }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); scrub(-1); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); scrub(1); return; }
+  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); speak(w.w, 1); return; }
+  if (e.key === '?') { e.preventDefault(); toggleKbHelp(); return; }
 }
 
 window.addEventListener('hashchange', route);

@@ -182,6 +182,24 @@ h2{font-size:17px;margin:0 0 12px}
 .done-box{text-align:center;padding:34px 20px}
 .done-box .big{font-size:44px;font-weight:800;color:var(--rose)}
 
+/* 打卡实时计数 + 按键说明 */
+.tally{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);padding:3px 10px;border-radius:20px;margin-left:6px;white-space:nowrap}
+.kblegend{display:flex;gap:8px 16px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--ink-3);background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+.kblegend kbd,.kb-list kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--ink);color:#fff;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;margin-right:2px}
+.sumrow{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.sum{padding:6px 14px;border-radius:20px;font-weight:600;font-size:14px}
+.sum.ok{background:var(--mint-s);color:#127063}
+.sum.bad{background:#fdeaea;color:#b3354c}
+.sum.mid{background:var(--amber-s);color:#8a5f10}
+.wcard.due{border-color:var(--rose);background:var(--rose-s)}
+.speak.sm{width:22px;height:22px;font-size:11px;margin-top:6px}
+
+/* 按键说明浮层 */
+.kbhelp{position:fixed;inset:0;background:rgba(47,42,51,.45);display:grid;place-items:center;z-index:200;padding:20px}
+.kbhelp-box{max-width:440px;width:100%}
+.kb-list{list-style:none;padding:0;margin:14px 0;display:grid;gap:10px}
+.kb-list li{font-size:13.5px;color:var(--ink-2);line-height:1.6}
+
 @media(max-width:640px){
   .topbar{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px}
   .nav{width:100%;overflow-x:auto}
