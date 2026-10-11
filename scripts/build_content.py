@@ -83,6 +83,64 @@ BOOK_NAMES = [b[0] for b in BOOKS]
 BOOK_CN = dict(BOOKS)
 
 
+WEB_ZIP = os.path.join(ROOT, "corpus", "bible", "WEB_html.zip")
+# eBible 分章文件名用的三字母书卷代码 -> KJV 卷名（与 BOOK_CN 中文卷名共用一套）
+CODE2BOOK = {
+    "GEN": "Genesis", "EXO": "Exodus", "LEV": "Leviticus", "NUM": "Numbers",
+    "DEU": "Deuteronomy", "JOS": "Joshua", "JDG": "Judges", "RUT": "Ruth",
+    "1SA": "1 Samuel", "2SA": "2 Samuel", "1KI": "1 Kings", "2KI": "2 Kings",
+    "1CH": "1 Chronicles", "2CH": "2 Chronicles", "EZR": "Ezra", "NEH": "Nehemiah",
+    "EST": "Esther", "JOB": "Job", "PSA": "Psalms", "PRO": "Proverbs",
+    "ECC": "Ecclesiastes", "SNG": "Song of Solomon", "ISA": "Isaiah",
+    "JER": "Jeremiah", "LAM": "Lamentations", "EZK": "Ezekiel", "DAN": "Daniel",
+    "HOS": "Hosea", "JOL": "Joel", "AMO": "Amos", "OBA": "Obadiah", "JON": "Jonah",
+    "MIC": "Micah", "NAM": "Nahum", "HAB": "Habakkuk", "ZEP": "Zephaniah",
+    "HAG": "Haggai", "ZEC": "Zechariah", "MAL": "Malachi", "MAT": "Matthew",
+    "MRK": "Mark", "LUK": "Luke", "JHN": "John", "ACT": "Acts", "ROM": "Romans",
+    "1CO": "1 Corinthians", "2CO": "2 Corinthians", "GAL": "Galatians",
+    "EPH": "Ephesians", "PHP": "Philippians", "COL": "Colossians",
+    "1TH": "1 Thessalonians", "2TH": "2 Thessalonians", "1TI": "1 Timothy",
+    "2TI": "2 Timothy", "TIT": "Titus", "PHM": "Philemon", "HEB": "Hebrews",
+    "JAS": "James", "1PE": "1 Peter", "2PE": "2 Peter", "1JN": "1 John",
+    "2JN": "2 John", "3JN": "3 John", "JUD": "Jude", "REV": "Revelation",
+}
+
+
+def parse_web(path):
+    """解析 World English Bible（eBible 分章 HTML，公有领域）。
+    不再从纯文本猜节号：直接按 <span class="verse" id="Vn"> 结构切分，
+    顺带剥掉 <a class="notemark"> 脚注与章末注释区。"""
+    import zipfile
+    import html as _html
+    if not os.path.exists(path):
+        return {}
+    z = zipfile.ZipFile(path)
+    out = {}
+    pat = re.compile(r"^([0-9]?[A-Z]{2,3})(\d+)\.htm$")
+    for name in z.namelist():
+        m = pat.match(name)
+        if not m:
+            continue
+        code, chap = m.group(1), int(m.group(2))
+        book = CODE2BOOK.get(code)
+        if not book:
+            continue                      # FRT 前言 / GLO 词汇表 跳过
+        raw = z.read(name).decode("utf-8", "ignore")
+        raw = re.sub(r'<a[^>]*class="notemark".*?</a>', " ", raw, flags=re.S)   # 行内脚注
+        cut = re.search(r'<div class=["\'](f|fn|footnote)["\']', raw)          # 章末注释区
+        if cut:
+            raw = raw[:cut.start()]
+        parts = re.split(r'<span class="verse" id="V(\d+)">', raw)
+        for i in range(1, len(parts) - 1, 2):
+            num = int(parts[i])
+            t = _html.unescape(re.sub(r"<[^>]+>", " ", parts[i + 1]))
+            t = re.sub(r"[\u0590-\u05ff\u0600-\u06ff]+", " ", t)
+            t = re.sub(r"^\d{1,3}\s+", "", " ".join(t.split()))   # 剥掉句首残留节号
+            if len(t) > 3:
+                out["%s %d:%d" % (book, chap, num)] = t
+    return out
+
+
 def parse_kjv(path):
     """逐卷推进：凡下一节恰为 1:1 即进入正典中的下一卷，
     因此引用编号与正文严格对应（不依赖任何可能被改写的题名格式）。"""
@@ -500,6 +558,9 @@ def build():
     print("[2/7] 解析 KJV …")
     verses = parse_kjv(BIBLE)
     print("       %d 节经文；样例 %s" % (len(verses), list(verses.items())[0][0]))
+    webv = parse_web(WEB_ZIP)
+    print("       WEB（世界英文译本，公有领域）%d 节；样例 %s" % (
+        len(webv), list(webv.items())[0][0] if webv else "无"))
 
     print("[3/7] 解析名著语料（对话 / 叙述）…")
     dialogs, narratives = load_novels()
@@ -572,7 +633,13 @@ def build():
         for t in set(TOK.findall(txt.lower())):
             if t in targets and len(b_ix[t]) < 50:
                 b_ix[t].append(ref)
-    print("       token：对话 %d / 叙述 %d / 经文 %d" % (len(d_ix), len(n_ix), len(b_ix)))
+    w_ix = collections.defaultdict(list)
+    for ref, txt in webv.items():
+        for t in set(TOK.findall(txt.lower())):
+            if t in targets and len(w_ix[t]) < 50:
+                w_ix[t].append(ref)
+    print("       token：对话 %d / 叙述 %d / KJV %d / WEB %d" % (
+        len(d_ix), len(n_ix), len(b_ix), len(w_ix)))
 
     print("[6/7] 统计搭配 …")
     coll = build_collocations(targets, narratives + dialogs)
@@ -605,6 +672,23 @@ def build():
             stat["bible"] += 1
         else:
             w["_b"] = None
+
+        # WEB 现代英文译本例句（与 KJV 同源书卷编号，可对读）
+        wref, wsc = None, -1e9
+        for v in forms:
+            for ref in w_ix.get(v, [])[:26]:
+                sc = score_lit(webv[ref][:240]) - abs(len(webv[ref]) - 130) * 0.2
+                if sc > wsc:
+                    wsc, wref = sc, ref
+            if wref and wsc > 45:
+                break
+        if wref:
+            bk = wref.rsplit(" ", 1)[0]
+            w["_b2"] = {"r": wref, "c": "%s %s" % (BOOK_CN.get(bk, bk), wref.rsplit(" ", 1)[1]),
+                        "t": webv[wref][:260]}
+            stat["web"] += 1
+        else:
+            w["_b2"] = None
 
         # 口语例句
         i, _ = pick(forms, d_ix, dialogs, score_oral, gate=70)
@@ -685,7 +769,7 @@ def build():
             payload["words"].append({
                 "w": w["word"], "uk": w["uk"], "us": w["us"],
                 "p": w["pos"] or guess_pos(w["word"]), "m": w["cn"],
-                "f": w["_f"], "c": w["_c"], "o": w["_o"], "q": w["_q"], "b": w["_b"],
+                "f": w["_f"], "c": w["_c"], "o": w["_o"], "q": w["_q"], "b": w["_b"], "b2": w["_b2"],
             })
         fn = os.path.join(OUT, "day-%02d.json" % d)
         json.dump(payload, open(fn, "w", encoding="utf-8"),
@@ -701,7 +785,7 @@ def build():
               "words": [{"w": w["word"], "uk": w["uk"], "us": w["us"],
                          "p": w["pos"] or guess_pos(w["word"]), "m": w["cn"],
                          "f": w["_f"], "c": w["_c"], "o": w["_o"],
-                         "q": w["_q"], "b": w["_b"]} for w in sprint_words]}
+                         "q": w["_q"], "b": w["_b"], "b2": w["_b2"]} for w in sprint_words]}
         fn = os.path.join(OUT, "sprint.json")
         json.dump(sp, open(fn, "w", encoding="utf-8"),
                   ensure_ascii=False, separators=(",", ":"))

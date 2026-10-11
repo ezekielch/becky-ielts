@@ -317,7 +317,8 @@ function renderCard() {
   for (const kind of s.L.order) {
     if (kind === 'o' && w.o) blocks.push(exHtml('o', 'violet', '口语化例句', w.o.w, null, w.o.t, w.w));
     if (kind === 'q' && w.q) blocks.push(exHtml('q', 'mint', '名著原文例句', `《${w.q.w}》`, w.q.a, w.q.t, w.w));
-    if (kind === 'b' && w.b) blocks.push(exHtml('b', 'sky', '圣经原文例句', w.b.c, null, w.b.t, w.w));
+    if (kind === 'b' && w.b) blocks.push(exHtml('b', 'sky', '圣经原文例句 · KJV 钦定本', w.b.c, null, w.b.t, w.w));
+    if (kind === 'b' && w.b2) blocks.push(exHtml('b', 'sky', '圣经对照 · WEB 现代英文译本', w.b2.c, null, w.b2.t, w.w));
   }
 
   const dictate = s.L.dictate ? `
