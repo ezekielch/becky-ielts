@@ -198,8 +198,9 @@ async function viewHome() {
       <p>打卡中答错的词自动进这里，按遗忘曲线回插到后续天数。</p>
       <p style="margin-top:8px"><span class="tag">${wrongN} 词待清</span></p>
     </a>`;
-  return `<div class="hero">
+  return `    <div class="hero">
       <h1>贝琪酱雅思英语无痛逆袭站</h1>
+      <p class="slogan">雅思8分孵化器 <span class="en">IELTS Band 8 Incubator</span></p>
       <p>雅思听说读写四条词汇航道。<b>第一天只有 10 个词</b>，按遗忘曲线自动加量，
       每天半小时，60 天走完 ${totalNew} 个雅思核心词条。</p>
       <p style="margin-top:10px">每个词都配：<b>英音 / 美音</b>、<b>口语化例句</b>、<b>名著原文例句</b>、

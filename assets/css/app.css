@@ -57,6 +57,9 @@ h2{font-size:17px;margin:0 0 12px}
 }
 .hero h1{font-size:26px}
 .hero p{color:var(--ink-2);margin:8px 0 0;max-width:62ch}
+.slogan{font-size:17px;font-weight:800;color:var(--rose-d);margin:8px 0 0 !important;letter-spacing:.5px}
+.slogan .en{display:block;font-size:12.5px;font-weight:600;color:var(--ink-3);letter-spacing:.4px;margin-top:2px}
+.brand-text small{color:var(--rose-d);font-weight:600}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:18px}
 .stat{background:rgba(255,255,255,.75);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .stat b{display:block;font-size:19px;color:var(--rose-d)}
