@@ -91,6 +91,28 @@ h2{font-size:17px;margin:0 0 12px}
 .l-reading   .ic{background:var(--mint-s)}     .l-reading   .bar i{background:var(--mint)}
 .l-writing   .ic{background:var(--amber-s)}    .l-writing   .bar i{background:var(--amber)}
 .l-speaking  .ic{background:var(--violet-s)}   .l-speaking  .bar i{background:var(--violet)}
+.l-blue  .ic{background:#e7effb} .l-blue  .bar i{background:#3a7fb8}
+.l-violet .ic{background:var(--violet-s)} .l-violet .bar i{background:var(--violet)}
+.l-amber  .ic{background:var(--amber-s)} .l-amber .bar i{background:var(--amber)}
+.l-mint   .ic{background:var(--mint-s)} .l-mint .bar i{background:var(--mint)}
+.l-sky    .ic{background:var(--sky-s)} .l-sky .bar i{background:var(--sky)}
+.l-rose   .ic{background:var(--rose-s)} .l-rose .bar i{background:var(--rose)}
+.l-peach  .ic{background:#ffe9d6} .l-peach .bar i{background:#e8895a}
+
+/* ---------- 子项网格（原版娃 / 打卡选板块） ---------- */
+.subgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:12px}
+.subgrid.big{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.subtile{
+  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
+  padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);
+  font-size:13px;color:var(--ink-2);transition:.15s;position:relative
+}
+.subtile:hover{border-color:var(--rose);transform:translateY(-2px)}
+.subtile span{font-size:18px}
+.subtile i{font-style:normal;font-size:11px;color:var(--mint);font-weight:600}
+.subtile i.soft{color:var(--ink-3);font-weight:500}
+.subtile.on{background:var(--rose-s);border-color:var(--rose);color:var(--rose-d)}
+.btn.ghost.wide{display:inline-block;margin-top:14px}
 
 /* ---------- 打卡条 ---------- */
 .planbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0}

@@ -1,30 +1,49 @@
-// 贝琪酱雅思英语无痛逆袭站 · 前端主程序（无框架、无外部依赖、纯静态）
+// 贝琪酱英语无痛逆袭站 · 前端主程序（无框架、无外部依赖、纯静态）
 // 所有数据来自本地 assets/data，音频走有道 dictvoice（英音 type=1 / 美音 type=2），
 // 断网时自动降级到浏览器 speechSynthesis。
 
 /* ============================== 配置 ============================== */
-// 单词打卡是独立板块（与听说读写四科并列，四科后续单独建设）
-const LANES = {
-  words: {
-    name: '背单词', icon: '🔤', cls: 'l-reading',
+// 7 个知识板块（学段 / 考试），与「单词打卡」并列
+const BOARDS = [
+  { id: 'zhongkao', name: '中考',   icon: '🎓', cls: 'l-blue' },
+  { id: 'gaokao',   name: '高考',   icon: '📚', cls: 'l-violet' },
+  { id: 'cet',      name: '四六级', icon: '📝', cls: 'l-amber' },
+  { id: 'kaoyan',   name: '考研',   icon: '🎯', cls: 'l-mint' },
+  { id: 'toefl',    name: '托福',   icon: '🌎', cls: 'l-sky' },
+  { id: 'ielts',    name: '雅思',   icon: '🇬🇧', cls: 'l-rose' },
+  { id: 'native',   name: '原版娃', icon: '🧒', cls: 'l-peach' },
+];
+// 原版娃 6 个子体系
+const NATIVE = [
+  { id: 'nce',      name: '新概念英语',        icon: '📘' },
+  { id: 'raz',      name: 'RAZ',              icon: '🌱' },
+  { id: 're',       name: 'Reading Explorer', icon: '🔭' },
+  { id: 'unlock',   name: 'Unlock',           icon: '🔓' },
+  { id: 'think',    name: 'Think',            icon: '💡' },
+  { id: 'classics', name: '英语名著3000',      icon: '📖' },
+];
+// 单词打卡引擎：按知识板块动态选择；仅 ielts 已上线真实词库
+const CHECKIN = {
+  zhongkao: { name: '中考核心词', ready: false, icon: '🎓', desc: '中考考纲高频词，配例句与记忆曲线，每天 15 分钟轻松积累。' },
+  gaokao:   { name: '高考核心词', ready: false, icon: '📚', desc: '高考 3500 词 + 高频拓展，按遗忘曲线自动排复习。' },
+  cet:      { name: '四六级核心词', ready: false, icon: '📝', desc: '四六级核心词库，真题语境例句，听音辨词 + 拼写训练。' },
+  kaoyan:   { name: '考研核心词', ready: false, icon: '🎯', desc: '考研英语一/二核心词，长难句语境，写作高频搭配。' },
+  toefl:    { name: '托福核心词', ready: false, icon: '🌎', desc: '托福学术词汇，TPO 语境例句，美音真人发音。' },
+  ielts:    { name: '雅思核心词', ready: true, icon: '🇬🇧',
     desc: '60 天走完 10,000 个雅思核心词条：英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，遗忘曲线自动排复习。',
-    order: ['b', 'q', 'o'], audioFirst: false, dictate: false, hideWord: false,
-  },
-};
-// 雅思四科（后续建设，当前为占位说明）
-const SUBJECTS = {
-  listening: { name: '听力', icon: '🎧', cls: 'l-listening',
-    plan: '真题精听 · 场景词汇听辨 · 听写填空 · 英音美音辨析' },
-  reading: { name: '阅读', icon: '📖', cls: 'l-reading',
-    plan: '题型技巧 · 同义替换库 · 长难句拆解 · 计时模考' },
-  writing: { name: '写作', icon: '✍️', cls: 'l-writing',
-    plan: '大作文题库 · 句型模板 · 同义升级 · 批改反馈' },
-  speaking: { name: '口语', icon: '💬', cls: 'l-speaking',
-    plan: 'Part1/2/3 题库 · 话题词汇 · 跟读评分 · 模考录音' },
+    order: ['b', 'q', 'o'], audioFirst: false, hideWord: false },
 };
 const AUDIO = (w, type) => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(w)}&type=${type}`;
-const KEY = (lane) => `bq8.${lane}`;
+const KEY = (subj) => `bq8.${subj}`;
 const DAY_MS = 86400000;
+
+// 旧版 'bq8.words' 进度迁移到 'bq8.ielts'（一次性的本地兼容）
+function migrateStore() {
+  try {
+    const old = localStorage.getItem('bq8.words');
+    if (old && !localStorage.getItem('bq8.ielts')) localStorage.setItem('bq8.ielts', old);
+  } catch (e) {}
+}
 
 /* ============================== 状态 ============================== */
 let META = null;
@@ -171,52 +190,59 @@ async function buildQueue(lane, day) {
 async function viewHome() {
   if (!META) META = await loadJSON('./assets/data/meta.json');
   const totalNew = META.days.filter(d => !d.sprint).reduce((a, d) => a + d.n, 0);
-  const s0 = storeFor('words');
-  const done0 = Object.values(s0.rec).filter(r => r.n > 0).length;
-  const wrongN = (s0.wrongPool || []).length;
-  const pct0 = Math.min(100, (done0 / Math.max(1, totalNew)) * 100);
-  const lanesHtml =
-    `<a class="lane ${LANES.words.cls}" href="#/lane/words">
-      <div class="ic">${LANES.words.icon}</div>
-      <b>背单词 · 60 天万词</b>
-      <p>${LANES.words.desc}</p>
-      <p style="margin-top:8px"><span class="tag">已学 ${done0} 词</span>
-        <span class="tag">连续 ${s0.streak || 0} 天</span>
-        ${wrongN ? `<span class="tag">错词 ${wrongN}</span>` : ''}</p>
-      <div class="bar"><i style="width:${pct0}%"></i></div>
-    </a>` +
-    Object.entries(SUBJECTS).map(([k, S]) =>
-      `<a class="lane ${S.cls}" href="#/sub/${k}">
-        <div class="ic">${S.icon}</div>
-        <b>${S.name}</b>
-        <p>${S.plan}</p>
-        <p style="margin-top:8px"><span class="tag">建设中</span></p>
-      </a>`).join('') +
-    `<a class="lane l-writing" href="#/wrong">
-      <div class="ic">🗂️</div>
-      <b>错词本</b>
-      <p>打卡中答错的词自动进这里，按遗忘曲线回插到后续天数。</p>
-      <p style="margin-top:8px"><span class="tag">${wrongN} 词待清</span></p>
+  const sI = storeFor('ielts');
+  const doneI = Object.values(sI.rec).filter(r => r.n > 0).length;
+  const wrongN = (sI.wrongPool || []).length;
+  const pctI = Math.min(100, (doneI / Math.max(1, totalNew)) * 100);
+
+  // 7 知识板块卡片（原版娃内嵌 6 子项）
+  const boardCards = BOARDS.map(B => {
+    if (B.id === 'native') {
+      const subs = NATIVE.map(n => `<a class="subtile" href="#/native/${n.id}"><span>${n.icon}</span>${esc(n.name)}</a>`).join('');
+      return `<a class="lane ${B.cls}" href="#/board/native">
+        <div class="ic">${B.icon}</div><b>${B.name}</b>
+        <p>新概念 / RAZ / Reading Explorer / Unlock / Think / 英语名著3000，原版阅读体系一站式打卡。</p>
+        <div class="subgrid">${subs}</div>
+      </a>`;
+    }
+    const C = CHECKIN[B.id];
+    const prog = B.id === 'ielts'
+      ? `<p style="margin-top:8px"><span class="tag">已学 ${doneI} 词</span>
+          <span class="tag">连续 ${sI.streak || 0} 天</span>
+          ${wrongN ? `<span class="tag">错词 ${wrongN}</span>` : ''}</p>
+        <div class="bar"><i style="width:${pctI}%"></i></div>`
+      : `<p style="margin-top:8px"><span class="tag">词库筹备中</span></p>`;
+    return `<a class="lane ${B.cls}" href="#/board/${B.id}">
+      <div class="ic">${B.icon}</div><b>${B.name}</b>
+      <p>${esc(C ? C.desc : '')}</p>${prog}
     </a>`;
-  return `    <div class="hero">
-      <h1>贝琪酱雅思英语无痛逆袭站</h1>
-      <p class="slogan">雅思8分孵化器 <span class="en">IELTS Band 8 Incubator</span></p>
-      <p>雅思听说读写四条词汇航道。<b>第一天只有 10 个词</b>，按遗忘曲线自动加量，
-      每天半小时，60 天走完 ${totalNew} 个雅思核心词条。</p>
-      <p style="margin-top:10px">每个词都配：<b>英音 / 美音</b>、<b>口语化例句</b>、<b>名著原文例句</b>、
-      <b>圣经原文例句</b>（真实书卷章节号）、高频<b>搭配</b>与<b>派生词</b>，每日还有<b>篇章拓展阅读</b>。</p>
+  }).join('');
+
+  // 单词打卡入口（统一动态选择）
+  const ckCard = `<a class="lane l-rose" href="#/checkin">
+      <div class="ic">🔤</div><b>单词打卡</b>
+      <p>按前面任一知识板块动态选择词库开刷：中考 / 高考 / 四六级 / 考研 / 托福 / 雅思 / 原版娃。遗忘曲线自动排复习，错词本持续回炉。</p>
+      <p style="margin-top:8px"><span class="tag">雅思 10000 词已上线</span><span class="tag">其余板块筹备中</span></p>
+    </a>`;
+
+  return `<div class="hero">
+      <h1>贝琪酱英语无痛逆袭站</h1>
+      <p class="slogan">英语满分孵化站 <span class="en">Full-Mark English Incubator</span></p>
+      <p>覆盖<b>中考 · 高考 · 四六级 · 考研 · 托福 · 雅思</b>全学段，以及<b>原版娃</b>阅读体系。每个板块都能开背单词打卡，每天半小时，按遗忘曲线自动排复习。</p>
+      <p style="margin-top:10px">旗舰词库 <b>雅思 10,000 词</b>已上线：每词配英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，每日还有篇章拓展阅读。</p>
     </div>
-    <div class="lanes">${lanesHtml}</div>
+    <div class="lanes">${boardCards}${ckCard}</div>
+    <a class="btn ghost wide" style="margin-top:14px" href="#/wrong">🗂️ 错词本（${wrongN}）</a>
     <div class="card pad" style="margin-top:18px">
-      <h2>每日新词曲线</h2>
-      <div class="muted">按你定的节奏：Day1 = 10 词，递增至 Day24 峰值 167 词，之后递减；复习由遗忘曲线自动插入，不占新词额度。</div>
+      <h2>每日新词曲线 · 雅思旗舰</h2>
+      <div class="muted">Day1 = 10 词，递增至 Day24 峰值 167 词，之后递减；复习由遗忘曲线自动插入，不占新词额度。</div>
       <div class="heat">${META.days.filter(d => !d.sprint).map(d => {
         const lv = d.n > 140 ? 'l4' : d.n > 100 ? 'l3' : d.n > 50 ? 'l2' : 'l1';
         return `<i class="${lv}" title="Day ${d.d}：${d.n} 词"></i>`;
       }).join('')}</div>
     </div>
     <div class="card pad" style="margin-top:14px">
-      <h2>词库构成</h2>
+      <h2>旗舰词库构成 · 雅思万词</h2>
       <div class="muted">${Object.entries(META.stat).map(([k, v]) => `${({ bible: '圣经原文例句', oral: '口语化例句', lit: '名著原文例句', deriv: '派生词', coll: '高频搭配' })[k] || k} ${v}`).join(' · ')}</div>
     </div>
     <div class="qr-promo">
@@ -224,25 +250,37 @@ async function viewHome() {
       <div class="qr-text">
         <b>关注公众号 · 贝琪酱英语无痛逆袭站</b>
         <span class="en">Follow us on WeChat — Becky's Painless English Station</span>
-        <span class="muted">微信扫码，打卡提醒、学习方法与雅思资讯持续更新</span>
+        <span class="muted">微信扫码，打卡提醒、学习方法与英语资讯持续更新</span>
       </div>
     </div>`;
 }
 
-/* ============================== 视图：航道 ============================== */
-async function viewLane(lane) {
-  const L = LANES[lane];
+/* ============================== 视图：打卡（按板块） ============================== */
+async function viewCheckin(subj) {
+  const C = CHECKIN[subj];
+  if (!C) { location.hash = '#/home'; return ''; }
+  if (!C.ready) {
+    return `<div class="card pad">
+      <div class="spread"><h1 style="margin:0">${C.icon} ${C.name}</h1><span class="tag">词库筹备中</span></div>
+      <p class="muted" style="margin-top:10px">${esc(C.desc)}</p>
+      <div class="muted" style="margin-top:14px">该板块的词库正在筹备上线。你可以先用已上线的 <b>雅思 10,000 词</b> 开刷，或回到「单词打卡」选择其他板块。</div>
+      <p style="margin-top:16px">
+        <a class="btn" href="#/checkin/ielts">去刷雅思万词 →</a>
+        <a class="btn ghost" href="#/checkin">单词打卡总入口</a>
+      </p>
+    </div>`;
+  }
   if (!META) META = await loadJSON('./assets/data/meta.json');
-  const s = storeFor(lane);
-  const day = plannedDay(lane);
+  const s = storeFor(subj);
+  const day = plannedDay(subj);
   const pack = await loadJSON(`./assets/data/day-${String(day).padStart(2, '0')}.json`);
   const done = pack.words.filter(w => (s.rec[`${day}:${w.w}`] || {}).n > 0).length;
   const pct = pack.words.length ? Math.round(done / pack.words.length * 100) : 0;
 
   return `<div class="spread">
-      <div><h1>${L.icon} ${L.name} · 单词打卡</h1>
-      <div class="muted">${L.desc}</div></div>
-      <a class="btn" href="#/study/${lane}/${day}">开始 Day ${day}（${pack.words.length} 词）</a>
+      <div><h1>${C.icon} ${C.name} · 单词打卡</h1>
+      <div class="muted">${esc(C.desc)}</div></div>
+      <a class="btn" href="#/study/${subj}/${day}">开始 Day ${day}（${pack.words.length} 词）</a>
     </div>
 
     <div class="card pad" style="margin-top:16px">
@@ -275,6 +313,41 @@ async function viewLane(lane) {
     </div>`;
 }
 
+/* ============================== 视图：单词打卡总入口（动态选板块） ============================== */
+function viewCheckinHub() {
+  const tiles = Object.entries(CHECKIN).map(([id, C]) =>
+    `<a class="subtile ${C.ready ? 'on' : ''}" href="#/checkin/${id}">
+      <span>${C.icon}</span>${esc(C.name)}${C.ready ? '<i>已上线</i>' : '<i class="soft">筹备中</i>'}
+    </a>`).join('');
+  return `<div class="card pad">
+    <h1>单词打卡 · 选板块</h1>
+    <div class="muted">选择一个知识板块开始背单词。打卡进度按板块独立保存，遗忘曲线自动排复习，错词本持续回炉。</div>
+    <div class="subgrid big" style="margin-top:16px">${tiles}</div>
+    <p class="muted" style="margin-top:14px">提示：目前仅<b>雅思 10,000 词</b>已上线，其余板块词库正在筹备。</p>
+  </div>`;
+}
+
+/* ============================== 视图：原版娃 ============================== */
+function viewNative() {
+  const subs = NATIVE.map(n => `<a class="lane l-peach" href="#/native/${n.id}">
+      <div class="ic">${n.icon}</div><b>${n.name}</b>
+      <p>原版阅读体系打卡，词库筹备中。</p>
+    </a>`).join('');
+  return `<div class="spread"><h1>🧒 原版娃</h1><span class="tag">阅读体系</span></div>
+    <p class="muted" style="margin-top:10px">原版阅读一站式打卡，覆盖新概念英语、RAZ、Reading Explorer、Unlock、Think、英语名著3000。各体系词库正在筹备上线。</p>
+    <div class="lanes" style="margin-top:16px">${subs}</div>`;
+}
+function viewNativeSub(id) {
+  const n = NATIVE.find(x => x.id === id);
+  if (!n) { location.hash = '#/board/native'; return ''; }
+  return `<div class="card pad">
+    <div class="spread"><h1 style="margin:0">${n.icon} ${n.name}</h1><span class="tag">词库筹备中</span></div>
+    <p class="muted" style="margin-top:10px">${n.name} 体系的单词打卡词库正在筹备上线。可先用已上线的雅思万词保持手感。</p>
+    <p style="margin-top:16px"><a class="btn" href="#/checkin/ielts">去刷雅思万词 →</a>
+      <a class="btn ghost" href="#/board/native">回到原版娃</a></p>
+  </div>`;
+}
+
 function packPassage(text, words) {
   let t = esc(text);
   const sorted = [...new Set(words)].sort((a, b) => b.length - a.length);
@@ -288,9 +361,11 @@ function packPassage(text, words) {
 /* ============================== 视图：学习 ============================== */
 let session = null;
 
-async function viewStudy(lane, dayStr) {
+async function viewStudy(subj, dayStr) {
+  const C = CHECKIN[subj];
+  if (!C || !C.ready) { location.hash = '#/checkin'; return ''; }
   const day = parseInt(dayStr, 10) || 1;
-  const L = LANES[lane];
+  const L = C;
   const pack = await loadJSON(`./assets/data/day-${String(day).padStart(2, '0')}.json`);
   const q = await buildQueue(lane, day);
   session = {
@@ -508,7 +583,7 @@ function renderDone() {
       </div>
       ${s.wrong ? `<div class="muted" style="margin-top:8px">有 ${s.wrong} 个词进错词本，后续天数会自动回炉复习 → <a href="#/wrong">去巩固</a></div>` : `<div class="muted" style="margin-top:8px">全部记住啦，继续保持 💪</div>`}
       <div class="row" style="justify-content:center;margin-top:16px">
-        <a class="btn" href="#/lane/${s.lane}">回到 ${s.L.name} 频道</a>
+        <a class="btn" href="#/checkin/${s.lane}">回到 ${s.L.name} 打卡</a>
         <a class="btn ghost" href="#/study/${s.lane}/${Math.min(60, s.day + 1)}">预习 Day ${s.day + 1}</a>
       </div>
       <div class="muted" style="margin-top:14px">连续打卡 ${st.streak} 天</div>
@@ -540,12 +615,12 @@ async function buildWrongQueue(lane) {
   return src.map(it => ({ key: it.key, day: it.day, w: it.w, kind: 'rev' }));
 }
 async function viewWrong() {
-  const s = storeFor('words');
+  const s = storeFor('ielts');
   const pool = s.wrongPool || [];
   if (!pool.length) {
     return `<div class="card pad"><h2>🗂️ 错词本</h2>
       <p class="muted">还没有答错的词。打卡时选「不认识 / 模糊」的词会自动进这里，并在后续天数回炉复习。</p>
-      <p style="margin-top:14px"><a class="btn" href="#/lane/words">去背单词</a></p></div>`;
+      <p style="margin-top:14px"><a class="btn" href="#/checkin/ielts">去背单词</a></p></div>`;
   }
   const now = Date.now();
   const list = pool.map(it => `<div class="wcard ${(s.rec[it.key] && s.rec[it.key].due <= now) ? 'due' : ''}">
@@ -564,10 +639,10 @@ function afterWrong() {
   });
 }
 async function viewWrongStudy() {
-  const lane = 'words';
+  const lane = 'ielts';
   const q = await buildWrongQueue(lane);
   session = {
-    lane, day: plannedDay(lane), L: LANES[lane], queue: q, idx: 0, revealed: false, start: Date.now(),
+    lane, day: plannedDay(lane), L: CHECKIN[lane], queue: q, idx: 0, revealed: false, start: Date.now(),
     total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0,
     right: 0, wrong: 0, fuzzy: 0, mode: 'wrong',
   };
@@ -588,16 +663,6 @@ async function viewWrongStudy() {
     <div id="card" class="card pad" style="margin-top:14px"></div>
   </div>`;
 }
-function viewSubject(k) {
-  const S = SUBJECTS[k];
-  return `<div class="card pad">
-    <div class="spread"><h1 style="margin:0">${S.icon} ${S.name}</h1><span class="tag">建设中</span></div>
-    <p class="muted" style="margin-top:10px">${S.plan}</p>
-    <div class="muted" style="margin-top:14px">四大板块（听 / 读 / 写 / 口）将基于单词打卡的记忆引擎陆续上线，敬请期待。</div>
-    <p style="margin-top:16px"><a class="btn" href="#/lane/words">先去背单词 →</a></p>
-  </div>`;
-}
-
 /* ============================== 路由 ============================== */
 function setNav(name) {
   document.querySelectorAll('#nav a').forEach(a => {
@@ -615,11 +680,14 @@ async function route() {
   session = null;
   try {
     if (page === 'home') { setNav('home'); view.innerHTML = await viewHome(); afterHome(); }
-    else if (page === 'lane' && LANES[a]) { setNav(a); view.innerHTML = await viewLane(a); afterLane(a); }
-    else if (page === 'study' && LANES[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
-    else if (page === 'sub' && SUBJECTS[a]) { setNav(a); view.innerHTML = viewSubject(a); }
-    else if (page === 'wrong') { setNav('words'); view.innerHTML = await viewWrong(); afterWrong(); }
-    else if (page === 'wrongstudy') { setNav('words'); view.innerHTML = await viewWrongStudy(); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'checkin' && a && CHECKIN[a]) { setNav('checkin'); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
+    else if (page === 'checkin') { setNav('checkin'); view.innerHTML = viewCheckinHub(); }
+    else if (page === 'board' && a === 'native') { setNav('native'); view.innerHTML = viewNative(); }
+    else if (page === 'board' && CHECKIN[a]) { setNav('board'); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
+    else if (page === 'native' && NATIVE.find(n => n.id === a)) { setNav('native'); view.innerHTML = viewNativeSub(a); }
+    else if (page === 'study' && CHECKIN[a]) { setNav('board'); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'wrong') { setNav('wrong'); view.innerHTML = await viewWrong(); afterWrong(); }
+    else if (page === 'wrongstudy') { setNav('wrong'); view.innerHTML = await viewWrongStudy(); renderCard(); startTimer(); afterStudy(); }
     else if (page === 'login') { setNav('login'); view.innerHTML = '';
       if (window.BQCloud) window.BQCloud.showLogin(); else location.hash = '#/home'; }
     else { location.hash = '#/home'; }
@@ -631,7 +699,7 @@ async function route() {
 }
 
 function afterHome() {}
-function afterLane(lane) {
+function afterCheckin(lane) {
   const tm = document.getElementById('toggleMode');
   if (tm) tm.onclick = () => {
     const s = storeFor(lane);
@@ -652,7 +720,7 @@ function afterLane(lane) {
 }
 function afterStudy() {
   const ex = document.getElementById('exitBtn');
-  if (ex) ex.onclick = () => { location.hash = session.mode === 'wrong' ? '#/wrong' : `#/lane/${session.lane}`; };
+  if (ex) ex.onclick = () => { location.hash = session.mode === 'wrong' ? '#/wrong' : `#/checkin/${session.lane}`; };
   const bh = document.getElementById('kbHelp'); if (bh) bh.onclick = toggleKbHelp;
   document.addEventListener('keydown', keyHandler);
 }
@@ -713,6 +781,7 @@ window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', () => { if (session && session.timer) clearInterval(session.timer); });
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
 // 先跑云端引导（含微信登录回调处理与进度合并），再进入路由
+migrateStore();
 if (window.BQCloud && window.BQCloud.boot) {
   window.BQCloud.boot().catch(function () {}).then(route);
 } else {
