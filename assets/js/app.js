@@ -232,7 +232,6 @@ async function viewHome() {
       <p style="margin-top:10px">旗舰词库 <b>雅思 10,000 词</b>已上线：每词配英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，每日还有篇章拓展阅读。</p>
     </div>
     <div class="lanes">${boardCards}${ckCard}</div>
-    <a class="btn ghost wide" style="margin-top:14px" href="#/wrong">🗂️ 错词本（${wrongN}）</a>
     <div class="card pad" style="margin-top:18px">
       <h2>每日新词曲线 · 雅思旗舰</h2>
       <div class="muted">Day1 = 10 词，递增至 Day24 峰值 167 词，之后递减；复习由遗忘曲线自动插入，不占新词额度。</div>
@@ -280,7 +279,10 @@ async function viewCheckin(subj) {
   return `<div class="spread">
       <div><h1>${C.icon} ${C.name} · 单词打卡</h1>
       <div class="muted">${esc(C.desc)}</div></div>
-      <a class="btn" href="#/study/${subj}/${day}">开始 Day ${day}（${pack.words.length} 词）</a>
+      <div class="row">
+        <a class="btn" href="#/study/${subj}/${day}">开始 Day ${day}（${pack.words.length} 词）</a>
+        <a class="btn ghost" href="#/wrong">🗂️ 错词本</a>
+      </div>
     </div>
 
     <div class="card pad" style="margin-top:16px">
@@ -319,11 +321,17 @@ function viewCheckinHub() {
     `<a class="subtile ${C.ready ? 'on' : ''}" href="#/checkin/${id}">
       <span>${C.icon}</span>${esc(C.name)}${C.ready ? '<i>已上线</i>' : '<i class="soft">筹备中</i>'}
     </a>`).join('');
+  const wrongN = (storeFor('ielts').wrongPool || []).length;
   return `<div class="card pad">
     <h1>单词打卡 · 选板块</h1>
     <div class="muted">选择一个知识板块开始背单词。打卡进度按板块独立保存，遗忘曲线自动排复习，错词本持续回炉。</div>
     <div class="subgrid big" style="margin-top:16px">${tiles}</div>
     <p class="muted" style="margin-top:14px">提示：目前仅<b>雅思 10,000 词</b>已上线，其余板块词库正在筹备。</p>
+  </div>
+  <div class="card pad" style="margin-top:14px">
+    <div class="spread"><h2 style="margin:0">🗂️ 错词本</h2>
+      <a class="btn" href="#/wrong">${wrongN ? `复习错词（${wrongN}）` : '查看错词本'}</a></div>
+    <div class="muted" style="margin-top:6px">打卡时判「不认识 / 模糊」的词会自动进错词本，按遗忘曲线回插到后续每天的打卡里，也可在这里专项突击。</div>
   </div>`;
 }
 
@@ -367,9 +375,9 @@ async function viewStudy(subj, dayStr) {
   const day = parseInt(dayStr, 10) || 1;
   const L = C;
   const pack = await loadJSON(`./assets/data/day-${String(day).padStart(2, '0')}.json`);
-  const q = await buildQueue(lane, day);
+  const q = await buildQueue(subj, day);
   session = {
-    lane, day, L, queue: q, idx: 0, revealed: false, start: Date.now(),
+    lane: subj, day, L, queue: q, idx: 0, revealed: false, start: Date.now(),
     total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0,
     right: 0, wrong: 0, fuzzy: 0, mode: 'study',
   };
@@ -683,9 +691,9 @@ async function route() {
     else if (page === 'checkin' && a && CHECKIN[a]) { setNav('checkin'); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
     else if (page === 'checkin') { setNav('checkin'); view.innerHTML = viewCheckinHub(); }
     else if (page === 'board' && a === 'native') { setNav('native'); view.innerHTML = viewNative(); }
-    else if (page === 'board' && CHECKIN[a]) { setNav('board'); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
+    else if (page === 'board' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
     else if (page === 'native' && NATIVE.find(n => n.id === a)) { setNav('native'); view.innerHTML = viewNativeSub(a); }
-    else if (page === 'study' && CHECKIN[a]) { setNav('board'); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'study' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
     else if (page === 'wrong') { setNav('wrong'); view.innerHTML = await viewWrong(); afterWrong(); }
     else if (page === 'wrongstudy') { setNav('wrong'); view.innerHTML = await viewWrongStudy(); renderCard(); startTimer(); afterStudy(); }
     else if (page === 'login') { setNav('login'); view.innerHTML = '';

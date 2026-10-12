@@ -36,6 +36,19 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 .nav a:hover{background:var(--rose-s)}
 .nav a.on{background:var(--rose);color:#fff;font-weight:600}
 
+/* 原版娃 折叠子菜单 */
+.nav-drop{position:relative;display:flex}
+.nav-drop-toggle{display:inline-flex;align-items:center;gap:3px}
+.nav-drop .caret{font-size:10px;opacity:.65;transition:.15s}
+.nav-drop:hover .caret{transform:rotate(180deg)}
+.nav-sub{display:none;position:absolute;top:calc(100% + 6px);left:0;flex-direction:column;
+  min-width:172px;background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.14);padding:6px;z-index:60}
+.nav-drop:hover .nav-sub,.nav-drop:focus-within .nav-sub{display:flex}
+.nav-sub a{padding:9px 12px;border-radius:8px;white-space:nowrap;color:var(--ink);font-size:14px}
+.nav-sub a:hover{background:var(--rose-s);color:var(--rose-d)}
+.nav-drop.on > .nav-drop-toggle{background:var(--rose);color:#fff;font-weight:600}
+
 main{max-width:920px;margin:0 auto;padding:22px 16px 40px}
 .foot{text-align:center;color:var(--ink-3);font-size:12px;padding:18px 16px 40px;line-height:1.9}
 
