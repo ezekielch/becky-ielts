@@ -290,6 +290,11 @@ async function viewCheckin(subj) {
   const done = pack.words.filter(w => (s.rec[`${day}:${w.w}`] || {}).n > 0).length;
   const pct = pack.words.length ? Math.round(done / pack.words.length * 100) : 0;
 
+  // 同板块并列：💯100句7000词（s100）进度条目
+  const sS = storeFor('s100');
+  const doneS = Object.values(sS.rec).filter(r => r.n > 0).length;
+  const nextS = Math.min(10, Object.keys(sS.log || {}).length + 1);
+
   return `<div class="spread">
       <div><h1>${C.icon} ${C.name} · 单词打卡</h1>
       <div class="muted">${esc(C.desc)}</div></div>
@@ -326,6 +331,19 @@ async function viewCheckin(subj) {
       <div class="muted">${esc((pack.passage && pack.passage.author) || '')}${pack.passage && pack.passage.title ? ' · 《' + esc(pack.passage.title) + '》' : ''}</div>
       <div class="passage" style="margin-top:10px">${pack.passage ? packPassage(pack.passage.text, pack.words.map(w => w.w)) : '<span class="muted">暂无</span>'}</div>
       ${pack.passage ? `<div class="row" style="margin-top:12px"><button class="chip2" id="readPassage">🔊 朗读全文</button></div>` : ''}
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <div class="spread">
+        <div><h2 style="margin:0">💯 100句7000词 · 同板块课程</h2>
+          <div class="muted" style="margin-top:4px">俞敏洪《100个句子记完7000个雅思单词》：10 天 · 100 句 · 6300+ 词。学句 → 测验摸底 → 没掌握的词进错词本与记忆曲线。</div></div>
+        <a class="btn" href="#/s100/${nextS}">${doneS ? '继续 Day ' + nextS : '开始 Day 1'} →</a>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="tag">已掌握 ${doneS} 词</span>
+        ${(sS.wrongPool || []).length ? `<span class="tag">错词 ${(sS.wrongPool || []).length}</span>` : ''}
+        <span class="tag">连续打卡 ${sS.streak || 0} 天</span>
+      </div>
     </div>`;
 }
 
@@ -334,7 +352,8 @@ function viewCheckinHub() {
   const tiles = Object.entries(CHECKIN).map(([id, C]) =>
     `<a class="subtile ${C.ready ? 'on' : ''}" href="#/checkin/${id}">
       <span>${C.icon}</span>${esc(C.name)}${C.ready ? '<i>已上线</i>' : '<i class="soft">筹备中</i>'}
-    </a>`).join('');
+    </a>`).join('')
+    + `<a class="subtile on" href="#/s100"><span>💯</span>100句7000词 · 雅思<i>10天课程</i></a>`;
   const wrongN = (storeFor('ielts').wrongPool || []).length;
   return `<div class="card pad">
     <h1>单词打卡 · 选板块</h1>
