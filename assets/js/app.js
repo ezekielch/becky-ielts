@@ -229,23 +229,13 @@ async function viewHome() {
       <p style="margin-top:8px"><span class="tag">雅思 10000 词已上线</span><span class="tag">其余板块筹备中</span></p>
     </a>`;
 
-  // 100句7000词入口
-  const sS = storeFor('s100');
-  const doneS = Object.values(sS.rec).filter(r => r.n > 0).length;
-  const wrongS = (sS.wrongPool || []).length;
-  const s100Card = `<a class="lane l-violet" href="#/s100">
-      <div class="ic">💯</div><b>100句7000词</b>
-      <p>俞敏洪《100个句子记完7000个雅思单词》：10 天 · 100 个剑桥真题难句 · 6300+ 词条。每天先精学 10 句，再测 30 题摸清没掌握的词，未掌握自动进错词本与记忆曲线回炉。</p>
-      <p style="margin-top:8px"><span class="tag">已掌握 ${doneS} 词</span><span class="tag">连续 ${sS.streak || 0} 天</span>${wrongS ? `<span class="tag">错词 ${wrongS}</span>` : ''}</p>
-    </a>`;
-
   return `<div class="hero">
       <h1>贝琪酱英语无痛逆袭站</h1>
       <p class="slogan">英语满分孵化站 <span class="en">Full-Mark English Incubator</span></p>
       <p>覆盖<b>中考 · 高考 · 四六级 · 考研 · 托福 · 雅思</b>全学段，以及<b>原版娃</b>阅读体系。每个板块都能开背单词打卡，每天半小时，按遗忘曲线自动排复习。</p>
       <p style="margin-top:10px">旗舰词库 <b>雅思 10,000 词</b>已上线：每词配英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，每日还有篇章拓展阅读。</p>
     </div>
-    <div class="lanes">${boardCards}${ckCard}${s100Card}</div>
+    <div class="lanes">${boardCards}${ckCard}</div>
     <div class="card pad" style="margin-top:18px">
       <h2>每日新词曲线 · 雅思旗舰</h2>
       <div class="muted">Day1 = 10 词，递增至 Day24 峰值 167 词，之后递减；复习由遗忘曲线自动插入，不占新词额度。</div>
