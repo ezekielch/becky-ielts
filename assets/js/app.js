@@ -879,10 +879,17 @@ function renderS100Sent(el) {
     <div class="s100-sec"><div class="sec-t">核心词</div>${s100WordLines(sn.core)}</div>
     ${themeHtml}
     <div class="grade" style="margin-top:16px">
-      <button class="g2" id="s100Next">${last ? '学完 10 句，开始测验 →' : '下一句 →'}<small>空格</small></button>
+      ${s.sidx > 0 ? `<button class="g1" id="s100Prev">← 上一句</button>` : ''}
+      <button class="g2" id="s100Next">${last ? '学完 10 句，开始测验 →' : '下一句 →'}<small>点击 / 空格</small></button>
     </div>`;
   s100BindSpeak(el);
   document.getElementById('s100Next').onclick = () => s100NextSent();
+  const pv = document.getElementById('s100Prev');
+  if (pv) pv.onclick = () => s100PrevSent();
+}
+
+function s100PrevSent() {
+  if (s100.sidx > 0) { s100.sidx--; s100.revealed = false; renderS100(); }
 }
 
 function s100NextSent() {
@@ -939,14 +946,26 @@ function s100Answer(q, ok, btn) {
   saveStore('s100', st);
   s100Tally();
   const tip = document.getElementById('qtip');
-  if (tip) tip.innerHTML = ok
+  if (tip) tip.innerHTML = (ok
     ? `<span class="tag">✓ 记得 · 已进入记忆曲线</span>`
-    : `<span class="tag">✗ 正确答案见绿色项 · 已进错词本，8 分钟后回来再考</span>`;
-  setTimeout(() => {
-    s.qidx++;
-    if (s.qidx >= s.quiz.length) { s.stage = s.revq.length ? 'rev' : 'done'; s.ridx = 0; s.revealed = false; }
-    renderS100();
-  }, ok ? 700 : 1600);
+    : `<span class="tag">✗ 正确答案见绿色项 · 已进错词本，8 分钟后回来再考</span>`)
+    + ` <button class="g2" id="s100NextQ" style="margin-left:8px">下一题 →</button>`;
+  const nb = document.getElementById('s100NextQ');
+  if (nb) nb.onclick = s100AdvanceQuiz;
+  if (s.qTimer) { clearTimeout(s.qTimer); s.qTimer = null; }
+  s.qGuard = false;
+  s.qTimer = setTimeout(s100AdvanceQuiz, ok ? 900 : 1700);
+}
+
+function s100AdvanceQuiz() {
+  const s = s100;
+  if (!s || s.qGuard) return;
+  s.qGuard = true;
+  if (s.qTimer) { clearTimeout(s.qTimer); s.qTimer = null; }
+  s.qidx++;
+  s.qGuard = false;
+  if (s.qidx >= s.quiz.length) { s.stage = s.revq.length ? 'rev' : 'done'; s.ridx = 0; s.revealed = false; }
+  renderS100();
 }
 
 /* ---- 阶段 3：错词/到期复习（自评卡） ---- */
@@ -964,18 +983,23 @@ function renderS100Rev(el) {
     ${revealed
       ? `<div class="mean">${esc(w.p || '')} ${esc(w.m || '')}</div>
          <div class="grade" style="margin-top:14px">
-           <button class="g0" data-g="0">不认识<small>1 · 8 分钟后再来</small></button>
-           <button class="g1" data-g="1">有点模糊<small>2 · 明天再见</small></button>
-           <button class="g2" data-g="2">记得<small>3 · 进入曲线</small></button>
+           <button class="g0" data-g="0">不认识<small>点击 / 1 · 8 分钟后再来</small></button>
+           <button class="g1" data-g="1">有点模糊<small>点击 / 2 · 明天再见</small></button>
+           <button class="g2" data-g="2">记得<small>点击 / 3 · 进入曲线</small></button>
          </div>`
       : `<div class="mean" style="color:var(--ink-3);font-size:15px">先回忆意思，再点下方显示</div>
          <div class="grade" style="margin-top:14px">
-           <button class="g2" id="s100Reveal">显示释义<small>空格</small></button>
+           <button class="g2" id="s100Reveal">显示释义<small>点击 / 空格</small></button>
          </div>`}
-    <div class="row" style="margin-top:12px"><button class="chip2" id="audioAgain">🔊 再听一遍</button></div>`;
+    <div class="row" style="margin-top:12px">
+      ${s.ridx > 0 ? `<button class="chip2" id="s100RevPrev">← 上一词</button>` : ''}
+      <button class="chip2" id="audioAgain">🔊 再听一遍</button>
+    </div>`;
   s100BindSpeak(el);
   const again = document.getElementById('audioAgain');
   if (again) again.onclick = () => speak(w.w, 1);
+  const rp = document.getElementById('s100RevPrev');
+  if (rp) rp.onclick = () => { if (s.ridx > 0) { s.ridx--; s.revealed = false; renderS100(); } };
   const rv = document.getElementById('s100Reveal');
   if (rv) rv.onclick = () => { s.revealed = true; renderS100(); };
   el.querySelectorAll('.grade button[data-g]').forEach(b => {
