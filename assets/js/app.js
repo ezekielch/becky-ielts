@@ -37,6 +37,10 @@ const AUDIO = (w, type) => `https://dict.youdao.com/dictvoice?audio=${encodeURIC
 const KEY = (subj) => `bq8.${subj}`;
 const DAY_MS = 86400000;
 
+// 100句7000词板块（俞敏洪《100个句子记完7000个雅思单词》）：10 天课程，
+// 每天 10 句 → 学完测验 30 题 → 未掌握词进错词本与记忆曲线
+const S100 = { name: '100句7000词', icon: '💯', quizN: 30, days: 10 };
+
 // 旧版 'bq8.words' 进度迁移到 'bq8.ielts'（一次性的本地兼容）
 function migrateStore() {
   try {
@@ -225,13 +229,23 @@ async function viewHome() {
       <p style="margin-top:8px"><span class="tag">雅思 10000 词已上线</span><span class="tag">其余板块筹备中</span></p>
     </a>`;
 
+  // 100句7000词入口
+  const sS = storeFor('s100');
+  const doneS = Object.values(sS.rec).filter(r => r.n > 0).length;
+  const wrongS = (sS.wrongPool || []).length;
+  const s100Card = `<a class="lane l-violet" href="#/s100">
+      <div class="ic">💯</div><b>100句7000词</b>
+      <p>俞敏洪《100个句子记完7000个雅思单词》：10 天 · 100 个剑桥真题难句 · 6300+ 词条。每天先精学 10 句，再测 30 题摸清没掌握的词，未掌握自动进错词本与记忆曲线回炉。</p>
+      <p style="margin-top:8px"><span class="tag">已掌握 ${doneS} 词</span><span class="tag">连续 ${sS.streak || 0} 天</span>${wrongS ? `<span class="tag">错词 ${wrongS}</span>` : ''}</p>
+    </a>`;
+
   return `<div class="hero">
       <h1>贝琪酱英语无痛逆袭站</h1>
       <p class="slogan">英语满分孵化站 <span class="en">Full-Mark English Incubator</span></p>
       <p>覆盖<b>中考 · 高考 · 四六级 · 考研 · 托福 · 雅思</b>全学段，以及<b>原版娃</b>阅读体系。每个板块都能开背单词打卡，每天半小时，按遗忘曲线自动排复习。</p>
       <p style="margin-top:10px">旗舰词库 <b>雅思 10,000 词</b>已上线：每词配英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，每日还有篇章拓展阅读。</p>
     </div>
-    <div class="lanes">${boardCards}${ckCard}</div>
+    <div class="lanes">${boardCards}${ckCard}${s100Card}</div>
     <div class="card pad" style="margin-top:18px">
       <h2>每日新词曲线 · 雅思旗舰</h2>
       <div class="muted">Day1 = 10 词，递增至 Day24 峰值 167 词，之后递减；复习由遗忘曲线自动插入，不占新词额度。</div>
@@ -622,8 +636,9 @@ async function buildWrongQueue(lane) {
   const src = due.length ? due : pool.slice();
   return src.map(it => ({ key: it.key, day: it.day, w: it.w, kind: 'rev' }));
 }
-async function viewWrong() {
-  const s = storeFor('ielts');
+async function viewWrong(lane) {
+  lane = lane || 'ielts';
+  const s = storeFor(lane);
   const pool = s.wrongPool || [];
   if (!pool.length) {
     return `<div class="card pad"><h2>🗂️ 错词本</h2>
@@ -646,11 +661,11 @@ function afterWrong() {
     b.onclick = (e) => { e.stopPropagation(); speak(b.dataset.audio, parseInt(b.dataset.type || '1', 10)); };
   });
 }
-async function viewWrongStudy() {
-  const lane = 'ielts';
+async function viewWrongStudy(lane) {
+  lane = lane || 'ielts';
   const q = await buildWrongQueue(lane);
   session = {
-    lane, day: plannedDay(lane), L: CHECKIN[lane], queue: q, idx: 0, revealed: false, start: Date.now(),
+    lane, day: plannedDay(lane), L: CHECKIN[lane] || { name: '错词复习', icon: '🗂️', order: [] }, queue: q, idx: 0, revealed: false, start: Date.now(),
     total: q.length, remainSec: 30 * 60, timer: null, newDone: 0, revDone: 0,
     right: 0, wrong: 0, fuzzy: 0, mode: 'wrong',
   };
@@ -671,6 +686,361 @@ async function viewWrongStudy() {
     <div id="card" class="card pad" style="margin-top:14px"></div>
   </div>`;
 }
+/* ============================== 100句7000词 ============================== */
+let S100META = null;
+let s100 = null; // s100 会话：{day, pack, quiz, stage, sidx, qidx, revq, ridx, revealed, start, right, wrong}
+
+const s100Store = () => storeFor('s100');
+
+async function viewS100Home() {
+  if (!S100META) S100META = await loadJSON('./assets/data/s100-meta.json');
+  const s = s100Store();
+  const done = Object.values(s.rec).filter(r => r.n > 0).length;
+  const wrongN = (s.wrongPool || []).length;
+  const pct = Math.min(100, done / Math.max(1, S100META.totalWords) * 100);
+  const nextDay = Math.min(S100.days, Object.keys(s.log || {}).length + 1);
+  const tiles = S100META.days.map(d => {
+    const dn = Object.keys(s.rec).filter(k => k.indexOf(d.d + ':') === 0 && s.rec[k].n > 0).length;
+    const p = Math.min(100, dn / Math.max(1, d.quiz) * 100);
+    return `<a class="subtile ${dn ? 'on' : ''}" href="#/s100/${d.d}">
+      <span>Day ${d.d}</span>${d.n} 词 · 测验 ${d.quiz} 词
+      <div class="bar" style="width:100%;margin-top:6px"><i style="width:${p}%"></i></div>
+    </a>`;
+  }).join('');
+  return `<div class="card pad">
+      <div class="spread"><h1 style="margin:0">💯 100句7000词</h1>
+        <a class="btn" href="#/s100/${nextDay}">${done ? '继续 Day ' + nextDay : '开始 Day 1'} →</a></div>
+      <div class="muted" style="margin-top:10px">俞敏洪《100个句子记完7000个雅思单词》全收录：${S100.days} 天 · 100 个剑桥真题难句 · ${S100META.totalWords} 个词条。
+      每天三步走：① 精学 10 句（原文 + 译文 + 句法 + 核心词/主题词）→ ② 测验 ${S100.quizN} 题选出正确释义，摸清哪些词没掌握 → ③ 没掌握的词自动进错词本和记忆曲线，后续每天回炉复习。</div>
+      <div class="row" style="margin-top:12px">
+        <span class="tag">已掌握 ${done} / ${S100META.totalWords}</span>
+        <span class="tag">连续打卡 ${s.streak || 0} 天</span>
+        ${wrongN ? `<span class="tag">错词 ${wrongN}</span>` : ''}
+        <span class="tag">累计测验 ${S100META.totalQuiz} 词</span>
+      </div>
+      <div class="bar" style="margin-top:10px"><i style="width:${pct}%"></i></div>
+    </div>
+    <div class="card pad" style="margin-top:14px">
+      <h2>10 天课程表</h2>
+      <div class="subgrid big" style="margin-top:12px">${tiles}</div>
+    </div>
+    <div class="card pad" style="margin-top:14px">
+      <div class="spread"><h2 style="margin:0">🗂️ 错词本</h2>
+        <a class="btn" href="#/wrongstudy/s100">复习错词${wrongN ? `（${wrongN}）` : ''}</a></div>
+      <div class="muted" style="margin-top:6px">测验答错或复习判「不认识 / 模糊」的词会进这里，按遗忘曲线回插到每天的测验前复习环节。</div>
+    </div>`;
+}
+
+function s100Hi(en, words) {
+  let out = esc(en);
+  const seen = new Set();
+  for (const w of words.filter(x => !x.sub && x.w.length > 2)) {
+    const k = w.w.toLowerCase();
+    if (seen.has(k)) continue; seen.add(k);
+    const f = w.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\b${f}\\w*\\b`, 'i');
+    if (re.test(out)) out = out.replace(re, m => `<mark>${m}</mark>`);
+  }
+  return out;
+}
+
+function s100WordLines(words) {
+  return words.map(w => `<div class="s100-wordline">
+      <b>${esc(w.w)}</b>
+      <button class="speak sm" data-audio="${esc(w.w)}" data-type="1">🔊</button>
+      ${w.p ? `<span class="pos" style="font-size:12px">${esc(w.p)}</span>` : ''}
+      <span class="m">${esc(w.m)}</span>
+      ${w.n && w.n.length ? `<span class="nt">${w.n.map(esc).join('　')}</span>` : ''}
+    </div>`).join('');
+}
+
+async function viewS100Study(day) {
+  if (!S100META) S100META = await loadJSON('./assets/data/s100-meta.json');
+  if (!(day >= 1 && day <= S100.days)) { location.hash = '#/s100'; return ''; }
+  const pack = await loadJSON(`./assets/data/s100-${String(day).padStart(2, '0')}.json`);
+  // 组卷：主词优先随机抽 S100.quizN 题
+  const pool = pack.words.filter(w => !w.sub && w.m);
+  const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+  const quiz = shuffled.slice(0, S100.quizN).map(w => ({ w, opts: s100Opts(w, pack.words) }));
+  // 到期复习：错词本到期 + 本包词曲线到期（每轮最多 25 个）
+  const st = s100Store();
+  const now = Date.now();
+  const revq = (st.wrongPool || [])
+    .filter(it => st.rec[it.key] && st.rec[it.key].due && st.rec[it.key].due <= now)
+    .slice(0, 25).map(it => ({ key: it.key, w: it.w }));
+  const inPack = pack.words.filter(w => {
+    if (revq.some(r => r.w.w === w.w)) return false;
+    const r = st.rec[`${day}:${w.w}`];
+    return r && r.due && r.due <= now;
+  }).slice(0, 25).map(w => ({ key: `${day}:${w.w}`, w }));
+  const revAll = revq.concat(inPack);
+
+  s100 = { day, pack, quiz, revq: revAll, stage: 'sent', sidx: 0, qidx: 0, ridx: 0,
+           revealed: false, start: Date.now(), right: 0, wrong: 0, quizRight: 0, quizWrong: 0 };
+  const total = 10 + quiz.length + revAll.length;
+  return `<div class="study">
+      <div class="spread">
+        <div><span class="tag">💯 100句7000词</span> <span class="tag">Day ${day}</span>
+          <span class="s100-stage" id="s100Stage">阶段 1 · 精学句子</span>
+          <span class="tally">✓ <b id="tRight">0</b> ✗ <b id="tWrong">0</b></span></div>
+        <div class="row">
+          <button class="chip2" id="exitBtn">退出</button>
+        </div>
+      </div>
+      <div class="progress-wrap"><i id="pbar" style="width:0%"></i></div>
+      <div class="row spread"><span class="muted" id="ptext">准备开始</span><span class="muted" id="counter">0 / ${total}</span></div>
+      <div id="card" class="card pad" style="margin-top:14px"></div>
+    </div>`;
+}
+
+// 4 选 1 干扰项：优先同词性
+function s100Opts(w, words) {
+  const samePos = words.filter(x => x.w !== w.w && x.m && x.p && x.p === w.p);
+  const others = words.filter(x => x.w !== w.w && x.m && (!x.p || !w.p || x.p !== w.p));
+  const pick = (arr, n) => arr.slice().sort(() => Math.random() - 0.5).slice(0, n);
+  const distract = pick(samePos, 3);
+  if (distract.length < 3) distract.push(...pick(others, 3 - distract.length).filter(x => !distract.includes(x)));
+  const correct = (w.p ? w.p + ' ' : '') + w.m;
+  const opts = distract.map(x => (x.p ? x.p + ' ' : '') + x.m);
+  opts.push(correct);
+  return opts.sort(() => Math.random() - 0.5).map(t => ({ t, ok: t === correct }));
+}
+
+function s100Progress() {
+  const s = s100;
+  const done = s.stage === 'sent' ? s.sidx : 10 + (s.stage === 'quiz' ? s.qidx : s.quiz.length + s.ridx);
+  const total = 10 + s.quiz.length + s.revq.length;
+  const bar = document.getElementById('pbar');
+  if (bar) bar.style.width = Math.round(done / Math.max(1, total) * 100) + '%';
+  const c = document.getElementById('counter');
+  if (c) c.textContent = `${done} / ${total}`;
+}
+
+function s100BindSpeak(el) {
+  el.querySelectorAll('.speak, .chip2[data-audio]').forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); speak(b.dataset.audio, parseInt(b.dataset.type || '1', 10)); };
+  });
+  el.querySelectorAll('[data-say]').forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); speakSentence(b.dataset.say, 'en-GB'); };
+  });
+}
+
+function s100Tally() {
+  const r = document.getElementById('tRight'), x = document.getElementById('tWrong');
+  if (r) r.textContent = s100.right; if (x) x.textContent = s100.wrong;
+}
+
+function renderS100() {
+  const el = document.getElementById('card');
+  if (!el || !s100) return;
+  const s = s100;
+  s100Progress();
+  if (s.stage === 'sent') return renderS100Sent(el);
+  if (s.stage === 'quiz') return renderS100Quiz(el);
+  if (s.stage === 'rev') return renderS100Rev(el);
+  return renderS100Done(el);
+}
+
+/* ---- 阶段 1：句子精学 ---- */
+function renderS100Sent(el) {
+  const s = s100;
+  const sn = s.pack.sentences[s.sidx];
+  document.getElementById('s100Stage').textContent = '阶段 1 · 精学句子';
+  document.getElementById('ptext').textContent = `第 ${s.sidx + 1} / 10 句`;
+  const last = s.sidx === s.pack.sentences.length - 1;
+  const themeHtml = sn.themes.map(t => `<div class="s100-sec">
+      <div class="sec-t">${esc(t.t)}</div>${s100WordLines(t.ws)}</div>`).join('');
+  el.innerHTML = `<div class="spread"><span class="tag">句子 ${sn.num} · ${esc(sn.source)}</span>
+      <button class="chip2" data-say="${esc(sn.en)}">🔊 朗读句子</button></div>
+    <div class="s100-sent">
+      <div class="s100-en">${s100Hi(sn.en, sn.core)}</div>
+      <div class="s100-zh">${esc(sn.zh)}</div>
+      ${sn.grammar ? `<div class="s100-gram">✏️ ${esc(sn.grammar)}</div>` : ''}
+    </div>
+    <div class="s100-sec"><div class="sec-t">核心词</div>${s100WordLines(sn.core)}</div>
+    ${themeHtml}
+    <div class="grade" style="margin-top:16px">
+      <button class="g2" id="s100Next">${last ? '学完 10 句，开始测验 →' : '下一句 →'}<small>空格</small></button>
+    </div>`;
+  s100BindSpeak(el);
+  document.getElementById('s100Next').onclick = () => s100NextSent();
+}
+
+function s100NextSent() {
+  const s = s100;
+  s.sidx++;
+  if (s.sidx >= s.pack.sentences.length) { s.stage = 'quiz'; s.qidx = 0; }
+  // 当天打卡记录
+  const st = s100Store();
+  const t = todayStr();
+  st.log = st.log || {};
+  st.log[t] = st.log[t] || { new: 0, rev: 0 };
+  st.log[t].new++;
+  if (st.lastDay !== t) {
+    const y = new Date(Date.now() - DAY_MS).toLocaleDateString('sv');
+    st.streak = (st.lastDay === y) ? (st.streak || 0) + 1 : 1;
+    st.lastDay = t;
+  }
+  saveStore('s100', st);
+  renderS100();
+}
+
+/* ---- 阶段 2：测验（4 选 1 释义） ---- */
+function renderS100Quiz(el) {
+  const s = s100;
+  document.getElementById('s100Stage').textContent = `阶段 2 · 测验 ${s.quiz.length} 题`;
+  if (s.qidx >= s.quiz.length) { s.stage = s.revq.length ? 'rev' : 'done'; s.ridx = 0; s.revealed = false; return renderS100(); }
+  const q = s.quiz[s.qidx];
+  const w = q.w;
+  const sn = s.pack.sentences[w.si];
+  document.getElementById('ptext').innerHTML = `<span class="tag">测验</span> 第 ${s.qidx + 1} / ${s.quiz.length} 题`;
+  el.innerHTML = `<div class="spread"><span class="tag">选出正确释义</span>
+      <button class="speak" data-audio="${esc(w.w)}" data-type="1">🔊</button></div>
+    <div class="wordhead"><div class="word">${esc(w.w)}</div>${w.p ? `<div class="pos">${esc(w.p)}</div>` : ''}</div>
+    ${sn ? `<div class="s100-sent"><div class="s100-en" style="font-size:15px">${s100Hi(sn.en, [w])}</div></div>` : ''}
+    <div id="opts">${q.opts.map((o, i) => `<button class="qopt" data-i="${i}" data-ok="${o.ok ? 1 : 0}">
+      <b>${'ABCD'[i]}</b>　${esc(o.t)}</button>`).join('')}</div>
+    <div class="muted" id="qtip" style="margin-top:10px">键盘 1-4 也可作答</div>`;
+  s100BindSpeak(el);
+  el.querySelectorAll('.qopt').forEach(b => {
+    b.onclick = () => s100Answer(q, parseInt(b.dataset.ok, 10) === 1, b);
+  });
+}
+
+function s100Answer(q, ok, btn) {
+  const s = s100;
+  const optsEl = document.getElementById('opts');
+  optsEl.querySelectorAll('.qopt').forEach(b => { b.disabled = true; if (b.dataset.ok === '1') b.classList.add('ok'); });
+  if (!ok && btn) btn.classList.add('bad');
+  const st = s100Store();
+  const key = `${s.day}:${q.w.w}`;
+  st.rec[key] = grade(st.rec[key] || { due: 0 }, ok ? 2 : 0);
+  if (ok) { s.right++; s.quizRight++; removeFromPool(st, key); }
+  else { s.wrong++; s.quizWrong++; addToPool(st, { key, day: s.day }, q.w); }
+  saveStore('s100', st);
+  s100Tally();
+  const tip = document.getElementById('qtip');
+  if (tip) tip.innerHTML = ok
+    ? `<span class="tag">✓ 记得 · 已进入记忆曲线</span>`
+    : `<span class="tag">✗ 正确答案见绿色项 · 已进错词本，8 分钟后回来再考</span>`;
+  setTimeout(() => {
+    s.qidx++;
+    if (s.qidx >= s.quiz.length) { s.stage = s.revq.length ? 'rev' : 'done'; s.ridx = 0; s.revealed = false; }
+    renderS100();
+  }, ok ? 700 : 1600);
+}
+
+/* ---- 阶段 3：错词/到期复习（自评卡） ---- */
+function renderS100Rev(el) {
+  const s = s100;
+  document.getElementById('s100Stage').textContent = '阶段 3 · 复习回炉';
+  if (s.ridx >= s.revq.length) { s.stage = 'done'; return renderS100(); }
+  const it = s.revq[s.ridx];
+  const w = it.w;
+  document.getElementById('ptext').innerHTML = `<span class="tag">复习</span> 第 ${s.ridx + 1} / ${s.revq.length} 个`;
+  const revealed = s.revealed;
+  el.innerHTML = `<div class="spread"><span class="tag">${revealed ? '还记得它吗？' : '回炉复习'}</span>
+      <button class="speak" data-audio="${esc(w.w)}" data-type="1">🔊</button></div>
+    <div class="wordhead"><div class="word">${esc(w.w)}</div>${w.p ? `<div class="pos">${esc(w.p)}</div>` : ''}</div>
+    ${revealed
+      ? `<div class="mean">${esc(w.p || '')} ${esc(w.m || '')}</div>
+         <div class="grade" style="margin-top:14px">
+           <button class="g0" data-g="0">不认识<small>1 · 8 分钟后再来</small></button>
+           <button class="g1" data-g="1">有点模糊<small>2 · 明天再见</small></button>
+           <button class="g2" data-g="2">记得<small>3 · 进入曲线</small></button>
+         </div>`
+      : `<div class="mean" style="color:var(--ink-3);font-size:15px">先回忆意思，再点下方显示</div>
+         <div class="grade" style="margin-top:14px">
+           <button class="g2" id="s100Reveal">显示释义<small>空格</small></button>
+         </div>`}
+    <div class="row" style="margin-top:12px"><button class="chip2" id="audioAgain">🔊 再听一遍</button></div>`;
+  s100BindSpeak(el);
+  const again = document.getElementById('audioAgain');
+  if (again) again.onclick = () => speak(w.w, 1);
+  const rv = document.getElementById('s100Reveal');
+  if (rv) rv.onclick = () => { s.revealed = true; renderS100(); };
+  el.querySelectorAll('.grade button[data-g]').forEach(b => {
+    b.onclick = () => s100RevGrade(it, parseInt(b.dataset.g, 10));
+  });
+}
+
+function s100RevGrade(it, g) {
+  const s = s100;
+  const st = s100Store();
+  st.rec[it.key] = grade(st.rec[it.key] || { due: 0 }, g);
+  if (g === 2) removeFromPool(st, it.key);
+  if (g === 2) s.right++; else s.wrong++;
+  const t = todayStr();
+  st.log = st.log || {};
+  st.log[t] = st.log[t] || { new: 0, rev: 0 };
+  st.log[t].rev++;
+  saveStore('s100', st);
+  s100Tally();
+  s.ridx++; s.revealed = false;
+  if (s.ridx >= s.revq.length) s.stage = 'done';
+  renderS100();
+}
+
+/* ---- 完成 ---- */
+function renderS100Done(el) {
+  const s = s100;
+  const mins = Math.round((Date.now() - s.start) / 60000);
+  const bar = document.getElementById('pbar'); if (bar) bar.style.width = '100%';
+  const c = document.getElementById('counter'); if (c) c.textContent = '全部完成';
+  const p = document.getElementById('ptext'); if (p) p.textContent = '本轮完成';
+  const st = s100Store();
+  const poolN = (st.wrongPool || []).length;
+  el.innerHTML = `<div class="done-box">
+      <div class="big">🎉</div>
+      <h2>Day ${s.day} 完成</h2>
+      <div class="muted">用时约 ${mins} 分钟 · 学了 10 句 · 测验 ${s.quiz.length} 题${s.revq.length ? ` · 复习 ${s.revq.length} 词` : ''}</div>
+      <div class="sumrow">
+        <span class="sum ok">掌握 ${s.right}</span>
+        <span class="sum bad">没掌握 ${s.wrong}</span>
+      </div>
+      ${s.wrong ? `<div class="muted" style="margin-top:8px">${s.wrong} 个词已进错词本与记忆曲线：今天 8 分钟后会再考一轮，之后按 1 → 2 → 4 → 7 → 15 天间隔回炉 → <a href="#/wrongstudy/s100">现在去巩固</a></div>`
+                : `<div class="muted" style="margin-top:8px">全部掌握，太强了 💪</div>`}
+      <div class="row" style="justify-content:center;margin-top:16px">
+        ${s.day < 10 ? `<a class="btn" href="#/s100/${s.day + 1}">预习 Day ${s.day + 1} →</a>` : `<a class="btn" href="#/s100">10 天课程全部完成，回到总览 🎓</a>`}
+        <a class="btn ghost" href="#/s100">回到课程总览</a>
+        <a class="btn ghost" href="#/home">回首页</a>
+      </div>
+      <div class="muted" style="margin-top:14px">连续打卡 ${st.streak || 0} 天 · 错词本 ${poolN} 词</div>
+    </div>`;
+}
+
+function afterS100() {
+  const ex = document.getElementById('exitBtn');
+  if (ex) ex.onclick = () => { location.hash = '#/s100'; };
+  document.addEventListener('keydown', s100Key);
+  if (s100 && s100.stage === 'sent') setTimeout(() => speakSentence(s100.pack.sentences[s100.sidx].en, 'en-GB'), 500);
+}
+
+function s100Key(e) {
+  if (!s100 || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const s = s100;
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    if (s.stage === 'sent') s100NextSent();
+    else if (s.stage === 'rev' && !s.revealed) { s.revealed = true; renderS100(); }
+    else if (s.stage === 'rev' && s.revealed) s100RevGrade(s.revq[s.ridx], 2);
+    return;
+  }
+  if (s.stage === 'quiz') {
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 4) {
+      const b = document.querySelectorAll('#opts .qopt')[n - 1];
+      if (b && !b.disabled) b.click();
+    }
+    return;
+  }
+  if (s.stage === 'rev' && s.revealed) {
+    if (e.key === '1') s100RevGrade(s.revq[s.ridx], 0);
+    if (e.key === '2') s100RevGrade(s.revq[s.ridx], 1);
+    if (e.key === '3') s100RevGrade(s.revq[s.ridx], 2);
+  }
+}
+
 /* ============================== 路由 ============================== */
 function setNav(name) {
   document.querySelectorAll('#nav a').forEach(a => {
@@ -680,6 +1050,7 @@ function setNav(name) {
 
 async function route() {
   document.removeEventListener('keydown', keyHandler);
+  document.removeEventListener('keydown', s100Key);
   const h = location.hash || '#/home';
   const m = h.match(/^#\/(\w+)(?:\/([\w-]+))?(?:\/(\d+))?/);
   const view = document.getElementById('view');
@@ -694,8 +1065,10 @@ async function route() {
     else if (page === 'board' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
     else if (page === 'native' && NATIVE.find(n => n.id === a)) { setNav('native'); view.innerHTML = viewNativeSub(a); }
     else if (page === 'study' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
-    else if (page === 'wrong') { setNav('wrong'); view.innerHTML = await viewWrong(); afterWrong(); }
-    else if (page === 'wrongstudy') { setNav('wrong'); view.innerHTML = await viewWrongStudy(); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 'wrong') { setNav('wrong'); view.innerHTML = await viewWrong(a); afterWrong(); }
+    else if (page === 'wrongstudy') { setNav('wrong'); view.innerHTML = await viewWrongStudy(a); renderCard(); startTimer(); afterStudy(); }
+    else if (page === 's100' && /^\d+$/.test(a || '')) { setNav('s100'); view.innerHTML = await viewS100Study(parseInt(a, 10)); afterS100(); }
+    else if (page === 's100') { setNav('s100'); view.innerHTML = await viewS100Home(); }
     else if (page === 'login') { setNav('login'); view.innerHTML = '';
       if (window.BQCloud) window.BQCloud.showLogin(); else location.hash = '#/home'; }
     else { location.hash = '#/home'; }
