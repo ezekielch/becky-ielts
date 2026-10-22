@@ -202,13 +202,13 @@ async function viewHome() {
   // 7 知识板块卡片（原版娃内嵌 6 子项）
   const boardCards = BOARDS.map(B => {
     if (B.id === 'native') {
-      const subs = NATIVE.map((n, i) => `<a class="subcard" style="animation-delay:${i * 60}ms" href="#/native/${n.id}">
-          <span class="si">${n.icon}</span><span class="sn">${esc(n.name)}</span>
-        </a>`).join('');
       return `<div class="lane ${B.cls}">
         <a class="lane-h" href="#/board/native"><div class="ic">${B.icon}</div><b>${B.name}</b></a>
-        <p>原版阅读体系一站式打卡：新概念 / RAZ / Reading Explorer / Unlock / Think / 英语名著3000。</p>
-        <div class="subcards">${subs}</div>
+        <p>原版阅读体系一站式打卡，覆盖新概念 / RAZ / Reading Explorer / Unlock / Think / 英语名著3000。</p>
+        <div class="row" style="margin-top:10px">
+          <a class="btn" href="#/board/native">查看 6 大体系 →</a>
+          <span class="tag">词库筹备中</span>
+        </div>
       </div>`;
     }
     const C = CHECKIN[B.id];
