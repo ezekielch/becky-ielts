@@ -29,7 +29,7 @@ const CHECKIN = {
   cet:      { name: '四六级核心词', ready: false, icon: '📝', desc: '四六级核心词库，真题语境例句，听音辨词 + 拼写训练。' },
   kaoyan:   { name: '考研核心词', ready: false, icon: '🎯', desc: '考研英语一/二核心词，长难句语境，写作高频搭配。' },
   toefl:    { name: '托福核心词', ready: false, icon: '🌎', desc: '托福学术词汇，TPO 语境例句，美音真人发音。' },
-  ielts:    { name: '雅思核心词', ready: true, icon: '🇬🇧',
+  ielts:    { name: '60天打卡雅思1万单词', ready: true, icon: '🇬🇧',
     desc: '60 天走完 10,000 个雅思核心词条：英音／美音、口语例句、名著原文、KJV + WEB 双译本经文、搭配与派生词，遗忘曲线自动排复习。',
     order: ['b', 'q', 'o'], audioFirst: false, hideWord: false },
 };
@@ -39,7 +39,7 @@ const DAY_MS = 86400000;
 
 // 100句7000词板块（俞敏洪《100个句子记完7000个雅思单词》）：10 天课程，
 // 每天 10 句 → 学完测验 30 题 → 未掌握词进错词本与记忆曲线
-const S100 = { name: '100句7000词', icon: '💯', quizN: 30, days: 10 };
+const S100 = { name: '6天100句英语打卡雅思7000词', icon: '💯', quizN: 30, days: 6 };
 
 // 旧版 'bq8.words' 进度迁移到 'bq8.ielts'（一次性的本地兼容）
 function migrateStore() {
@@ -266,7 +266,7 @@ async function viewCheckin(subj) {
     return `<div class="card pad">
       <div class="spread"><h1 style="margin:0">${C.icon} ${C.name}</h1><span class="tag">词库筹备中</span></div>
       <p class="muted" style="margin-top:10px">${esc(C.desc)}</p>
-      <div class="muted" style="margin-top:14px">该板块的词库正在筹备上线。你可以先用已上线的 <b>雅思 10,000 词</b> 开刷，或回到「单词打卡」选择其他板块。</div>
+      <div class="muted" style="margin-top:14px">该板块的词库正在筹备上线。你可以先用已上线的 <b>雅思课程</b> 开刷，或回到「单词打卡」选择其他板块。</div>
       <p style="margin-top:16px">
         <a class="btn" href="#/checkin/ielts">去刷雅思万词 →</a>
         <a class="btn ghost" href="#/checkin">单词打卡总入口</a>
@@ -280,31 +280,54 @@ async function viewCheckin(subj) {
   const done = pack.words.filter(w => (s.rec[`${day}:${w.w}`] || {}).n > 0).length;
   const pct = pack.words.length ? Math.round(done / pack.words.length * 100) : 0;
 
-  // 同板块并列：💯100句7000词（s100）进度条目
+  // ===== 雅思板块下两门课程并列：万词打卡 + 100句7000词 =====
   const sS = storeFor('s100');
   const doneS = Object.values(sS.rec).filter(r => r.n > 0).length;
-  const nextS = Math.min(10, Object.keys(sS.log || {}).length + 1);
+  const nextS = Math.min(S100.days, Object.keys(sS.log || {}).length + 1);
 
-  return `<div class="spread">
-      <div><h1>${C.icon} ${C.name} · 单词打卡</h1>
-      <div class="muted">${esc(C.desc)}</div></div>
-      <div class="row">
+  const cardIelts = `
+    <div class="card pad course-card">
+      <div class="course-h"><span class="ci">🇬🇧</span><h2 style="margin:0">${esc(C.name)}</h2></div>
+      <div class="muted" style="margin:8px 0">${esc(C.desc)}</div>
+      <div class="row" style="margin-bottom:8px">
         <a class="btn" href="#/study/${subj}/${day}">开始 Day ${day}（${pack.words.length} 词）</a>
         <a class="btn ghost" href="#/wrong">🗂️ 错词本</a>
       </div>
-    </div>
-
-    <div class="card pad" style="margin-top:16px">
-      <div class="spread"><h2 style="margin:0">今日进度 · Day ${day}</h2>
-        <span class="muted">${done} / ${pack.words.length} · ${pct}%</span></div>
-      <div class="progress-wrap"><i style="width:${pct}%"></i></div>
-      <div class="row" style="margin-top:6px">
+      <div class="row">
         <span class="tag">连续打卡 ${s.streak || 0} 天</span>
         <span class="tag">已掌握 ${Object.values(s.rec).filter(r => r.n > 0).length} 词</span>
         ${ (s.wrongPool || []).length ? `<span class="tag">错词 ${(s.wrongPool || []).length}</span>` : '' }
         <span class="tag">模式：${s.mode === 'flat' ? '匀速（60 天全覆盖）' : '渐进曲线'}</span>
         <button class="chip2" id="toggleMode" style="margin-left:auto">切换模式</button>
       </div>
+    </div>`;
+
+  const cardS100 = `
+    <div class="card pad course-card">
+      <div class="course-h"><span class="ci">💯</span><h2 style="margin:0">${esc(S100.name)}</h2></div>
+      <div class="muted" style="margin:8px 0">俞敏洪《100个句子记完7000个雅思单词》：精学 100 个剑桥真题难句 → 测验摸底 → 没掌握的词自动进错词本与记忆曲线回炉。</div>
+      <div class="row" style="margin-bottom:8px">
+        <a class="btn" href="#/s100/${nextS}">${doneS ? '继续 Day ' + nextS : '开始 Day 1'} →</a>
+        <a class="btn ghost" href="#/wrong/s100">🗂️ 错词本</a>
+      </div>
+      <div class="row">
+        <span class="tag">已掌握 ${doneS} 词</span>
+        ${(sS.wrongPool || []).length ? `<span class="tag">错词 ${(sS.wrongPool || []).length}</span>` : ''}
+        <span class="tag">连续打卡 ${sS.streak || 0} 天</span>
+      </div>
+    </div>`;
+
+  return `<div class="spread">
+      <div><h1>${C.icon} 雅思 · 课程中心</h1>
+      <div class="muted">雅思板块下两门课程，进度各自独立保存，均按遗忘曲线自动排复习。</div></div>
+    </div>
+
+    <div class="course-grid" style="margin-top:14px">${cardIelts}${cardS100}</div>
+
+    <div class="card pad" style="margin-top:16px">
+      <div class="spread"><h2 style="margin:0">${esc(C.name)} · 今日进度 Day ${day}</h2>
+        <span class="muted">${done} / ${pack.words.length} · ${pct}%</span></div>
+      <div class="progress-wrap"><i style="width:${pct}%"></i></div>
     </div>
 
     <div class="card pad" style="margin-top:14px">
@@ -321,19 +344,6 @@ async function viewCheckin(subj) {
       <div class="muted">${esc((pack.passage && pack.passage.author) || '')}${pack.passage && pack.passage.title ? ' · 《' + esc(pack.passage.title) + '》' : ''}</div>
       <div class="passage" style="margin-top:10px">${pack.passage ? packPassage(pack.passage.text, pack.words.map(w => w.w)) : '<span class="muted">暂无</span>'}</div>
       ${pack.passage ? `<div class="row" style="margin-top:12px"><button class="chip2" id="readPassage">🔊 朗读全文</button></div>` : ''}
-    </div>
-
-    <div class="card pad" style="margin-top:14px">
-      <div class="spread">
-        <div><h2 style="margin:0">💯 100句7000词 · 同板块课程</h2>
-          <div class="muted" style="margin-top:4px">俞敏洪《100个句子记完7000个雅思单词》：10 天 · 100 句 · 6300+ 词。学句 → 测验摸底 → 没掌握的词进错词本与记忆曲线。</div></div>
-        <a class="btn" href="#/s100/${nextS}">${doneS ? '继续 Day ' + nextS : '开始 Day 1'} →</a>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <span class="tag">已掌握 ${doneS} 词</span>
-        ${(sS.wrongPool || []).length ? `<span class="tag">错词 ${(sS.wrongPool || []).length}</span>` : ''}
-        <span class="tag">连续打卡 ${sS.streak || 0} 天</span>
-      </div>
     </div>`;
 }
 
@@ -343,13 +353,13 @@ function viewCheckinHub() {
     `<a class="subtile ${C.ready ? 'on' : ''}" href="#/checkin/${id}">
       <span>${C.icon}</span>${esc(C.name)}${C.ready ? '<i>已上线</i>' : '<i class="soft">筹备中</i>'}
     </a>`).join('')
-    + `<a class="subtile on" href="#/s100"><span>💯</span>100句7000词 · 雅思<i>10天课程</i></a>`;
+    + `<a class="subtile on" href="#/s100"><span>💯</span>${esc(S100.name)}<i>雅思课程</i></a>`;
   const wrongN = (storeFor('ielts').wrongPool || []).length;
   return `<div class="card pad">
     <h1>单词打卡 · 选板块</h1>
     <div class="muted">选择一个知识板块开始背单词。打卡进度按板块独立保存，遗忘曲线自动排复习，错词本持续回炉。</div>
     <div class="subgrid big" style="margin-top:16px">${tiles}</div>
-    <p class="muted" style="margin-top:14px">提示：目前仅<b>雅思 10,000 词</b>已上线，其余板块词库正在筹备。</p>
+    <p class="muted" style="margin-top:14px">提示：雅思 <b>${esc(CHECKIN.ielts.name)}</b> 与 <b>${esc(S100.name)}</b> 已上线，其余板块词库正在筹备。</p>
   </div>
   <div class="card pad" style="margin-top:14px">
     <div class="spread"><h2 style="margin:0">🗂️ 错词本</h2>
@@ -717,7 +727,7 @@ async function viewS100Home() {
     </a>`;
   }).join('');
   return `<div class="card pad">
-      <div class="spread"><h1 style="margin:0">💯 100句7000词</h1>
+      <div class="spread"><h1 style="margin:0">💯 ${esc(S100.name)}</h1>
         <a class="btn" href="#/s100/${nextDay}">${done ? '继续 Day ' + nextDay : '开始 Day 1'} →</a></div>
       <div class="muted" style="margin-top:10px">俞敏洪《100个句子记完7000个雅思单词》全收录：${S100.days} 天 · 100 个剑桥真题难句 · ${S100META.totalWords} 个词条。
       每天三步走：① 精学 10 句（原文 + 译文 + 句法 + 核心词/主题词）→ ② 测验 ${S100.quizN} 题选出正确释义，摸清哪些词没掌握 → ③ 没掌握的词自动进错词本和记忆曲线，后续每天回炉复习。</div>
@@ -730,7 +740,7 @@ async function viewS100Home() {
       <div class="bar" style="margin-top:10px"><i style="width:${pct}%"></i></div>
     </div>
     <div class="card pad" style="margin-top:14px">
-      <h2>10 天课程表</h2>
+      <h2>${S100.days} 天课程表</h2>
       <div class="subgrid big" style="margin-top:12px">${tiles}</div>
     </div>
     <div class="card pad" style="margin-top:14px">
@@ -789,7 +799,7 @@ async function viewS100Study(day) {
   const total = 10 + quiz.length + revAll.length;
   return `<div class="study">
       <div class="spread">
-        <div><span class="tag">💯 100句7000词</span> <span class="tag">Day ${day}</span>
+        <div><span class="tag">💯 ${esc(S100.name)}</span> <span class="tag">Day ${day}</span>
           <span class="s100-stage" id="s100Stage">阶段 1 · 精学句子</span>
           <span class="tally">✓ <b id="tRight">0</b> ✗ <b id="tWrong">0</b></span></div>
         <div class="row">
