@@ -308,3 +308,7 @@ h2{font-size:17px;margin:0 0 12px}
 @keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media(max-width:680px){.subcards,.subcards.wide{grid-template-columns:repeat(2,1fr)}}
 @media (prefers-reduced-motion: reduce){.subcard{animation:none}}
+
+/* 页脚关注条（全站每个页面底部） */
+.foot .qr-promo{max-width:860px;margin:0 auto 10px;text-align:left}
+@media (max-width:520px){ .foot .qr-promo{text-align:center} }
