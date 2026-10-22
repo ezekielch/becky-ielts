@@ -259,7 +259,7 @@ async function viewHome() {
 }
 
 /* ============================== 视图：打卡（按板块） ============================== */
-async function viewCheckin(subj) {
+async function viewCheckin(subj, isBoard) {
   const C = CHECKIN[subj];
   if (!C) { location.hash = '#/home'; return ''; }
   if (!C.ready) {
@@ -324,6 +324,7 @@ async function viewCheckin(subj) {
 
     <div class="course-grid" style="margin-top:14px">${cardIelts}${cardS100}</div>
 
+    ${isBoard ? '' : `
     <div class="card pad" style="margin-top:16px">
       <div class="spread"><h2 style="margin:0">${esc(C.name)} · 今日进度 Day ${day}</h2>
         <span class="muted">${done} / ${pack.words.length} · ${pct}%</span></div>
@@ -344,7 +345,8 @@ async function viewCheckin(subj) {
       <div class="muted">${esc((pack.passage && pack.passage.author) || '')}${pack.passage && pack.passage.title ? ' · 《' + esc(pack.passage.title) + '》' : ''}</div>
       <div class="passage" style="margin-top:10px">${pack.passage ? packPassage(pack.passage.text, pack.words.map(w => w.w)) : '<span class="muted">暂无</span>'}</div>
       ${pack.passage ? `<div class="row" style="margin-top:12px"><button class="chip2" id="readPassage">🔊 朗读全文</button></div>` : ''}
-    </div>`;
+    </div>`}
+`;
 }
 
 /* ============================== 视图：单词打卡总入口（动态选板块） ============================== */
@@ -1102,10 +1104,10 @@ async function route() {
   session = null;
   try {
     if (page === 'home') { setNav('home'); view.innerHTML = await viewHome(); afterHome(); }
-    else if (page === 'checkin' && a && CHECKIN[a]) { setNav('checkin'); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
+    else if (page === 'checkin' && a && CHECKIN[a]) { setNav('checkin'); view.innerHTML = await viewCheckin(a, false); afterCheckin(a); }
     else if (page === 'checkin') { setNav('checkin'); view.innerHTML = viewCheckinHub(); }
     else if (page === 'board' && a === 'native') { setNav('native'); view.innerHTML = viewNative(); }
-    else if (page === 'board' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewCheckin(a); afterCheckin(a); }
+    else if (page === 'board' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewCheckin(a, true); afterCheckin(a); }
     else if (page === 'native' && NATIVE.find(n => n.id === a)) { setNav('native'); view.innerHTML = viewNativeSub(a); }
     else if (page === 'study' && CHECKIN[a]) { setNav(a); view.innerHTML = await viewStudy(a, b); renderCard(); startTimer(); afterStudy(); }
     else if (page === 'wrong') { setNav('wrong'); view.innerHTML = await viewWrong(a); afterWrong(); }
