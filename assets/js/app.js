@@ -202,12 +202,14 @@ async function viewHome() {
   // 7 知识板块卡片（原版娃内嵌 6 子项）
   const boardCards = BOARDS.map(B => {
     if (B.id === 'native') {
-      const subs = NATIVE.map(n => `<a class="subtile" href="#/native/${n.id}"><span>${n.icon}</span>${esc(n.name)}</a>`).join('');
-      return `<a class="lane ${B.cls}" href="#/board/native">
-        <div class="ic">${B.icon}</div><b>${B.name}</b>
-        <p>新概念 / RAZ / Reading Explorer / Unlock / Think / 英语名著3000，原版阅读体系一站式打卡。</p>
-        <div class="subgrid">${subs}</div>
-      </a>`;
+      const subs = NATIVE.map((n, i) => `<a class="subcard" style="animation-delay:${i * 60}ms" href="#/native/${n.id}">
+          <span class="si">${n.icon}</span><span class="sn">${esc(n.name)}</span>
+        </a>`).join('');
+      return `<div class="lane ${B.cls}">
+        <a class="lane-h" href="#/board/native"><div class="ic">${B.icon}</div><b>${B.name}</b></a>
+        <p>原版阅读体系一站式打卡：新概念 / RAZ / Reading Explorer / Unlock / Think / 英语名著3000。</p>
+        <div class="subcards">${subs}</div>
+      </div>`;
     }
     const C = CHECKIN[B.id];
     const prog = B.id === 'ielts'
@@ -372,13 +374,13 @@ function viewCheckinHub() {
 
 /* ============================== 视图：原版娃 ============================== */
 function viewNative() {
-  const subs = NATIVE.map(n => `<a class="lane l-peach" href="#/native/${n.id}">
-      <div class="ic">${n.icon}</div><b>${n.name}</b>
-      <p>原版阅读体系打卡，词库筹备中。</p>
+  const subs = NATIVE.map((n, i) => `<a class="subcard big" style="animation-delay:${i * 60}ms" href="#/native/${n.id}">
+      <span class="si">${n.icon}</span><span class="sn">${esc(n.name)}</span>
+      <span class="sd">原版阅读体系 · 词库筹备中</span>
     </a>`).join('');
   return `<div class="spread"><h1>🧒 原版娃</h1><span class="tag">阅读体系</span></div>
     <p class="muted" style="margin-top:10px">原版阅读一站式打卡，覆盖新概念英语、RAZ、Reading Explorer、Unlock、Think、英语名著3000。各体系词库正在筹备上线。</p>
-    <div class="lanes" style="margin-top:16px">${subs}</div>`;
+    <div class="subcards wide" style="margin-top:16px">${subs}</div>`;
 }
 function viewNativeSub(id) {
   const n = NATIVE.find(x => x.id === id);

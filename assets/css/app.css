@@ -284,3 +284,27 @@ h2{font-size:17px;margin:0 0 12px}
 .course-h .ci{font-size:28px;line-height:1}
 .course-card .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 @media(max-width:640px){.course-grid{grid-template-columns:1fr}}
+
+/* ============ 原版娃 二级动画卡片 ============ */
+.lane-h{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);cursor:pointer}
+.lane-h .ic{margin-bottom:0}
+.lane-h b{font-size:16px}
+.subcards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.subcard{
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  padding:10px 11px;border:1.5px solid var(--line);border-radius:11px;
+  background:var(--surface-2);color:var(--ink);text-decoration:none;
+  opacity:1;transform:none;
+  animation:cardIn .45s ease backwards;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.subcard:hover{transform:translateY(-3px);border-color:var(--rose);box-shadow:var(--shadow-lg);background:#fff}
+.subcard .si{font-size:19px;line-height:1}
+.subcard .sn{font-weight:600;font-size:14.5px;line-height:1.2}
+.subcard .sd{font-size:11.5px;color:var(--ink-3)}
+.subcard.big{padding:16px 16px 14px}
+.subcard.big .sn{font-size:16px}
+.subcards.wide{grid-template-columns:repeat(3,1fr)}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:680px){.subcards,.subcards.wide{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion: reduce){.subcard{animation:none}}
